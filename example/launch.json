@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Web App (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:19006",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "yarn web",
+      "sourceMaps": true,
+      "trace": true,
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
+      "env":  {
+        "LOG_LEVEL": "debug" // Enable verbose logging
+        }
+      },
+      {
+      "type": "node",
+      "request": "launch",
+      "name": "Compile & Run TS in Example",
+      "preLaunchTask": "compile-ts-to-example",
+      "program": "${workspaceFolder}/example/${fileBasenameNoExtension}.js",
+      "outFiles": ["${workspaceFolder}/example/**/*.js"],
+      "sourceMaps": true,
+      "trace": true,  // Optional: helps debug sourcemap issues
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
+
