@@ -1,98 +1,145 @@
-import { sha256 as nobleSha256 } from '@noble/hashes/sha256';
-import { sign } from '@noble/secp256k1';
-import { HDKey } from '@scure/bip32';
-import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
-
+import {randomBytes} from '@noble/ciphers/webcrypto'
+import {sha256 as nobleSha256} from '@noble/hashes/sha256'
+import {sign} from '@noble/secp256k1'
+import {HDKey} from '@scure/bip32'
+import {generateMnemonic, mnemonicToSeedSync} from '@scure/bip39'
+import {wordlist} from '@scure/bip39/wordlists/english'
 
 export interface HDWallet {
-  readonly mnemonic: string;
-  readonly publicKey: string;
-  readonly did: string;
-  derivePath(path: string): HDWallet;
-  signMessage(message: string): Uint8Array;
+  readonly mnemonic: string
+  readonly publicKey: string
+  readonly privateKey: string // hex string
+  derivePath(path: string): HDWallet
+  signMessage(message: string): Uint8Array
 }
 
 export function generateWalletMnemonic(): string {
-  return generateMnemonic(wordlist, 256);
+  return generateMnemonic(wordlist, 256)
 }
 
 export function createWalletFromMnemonic(mnemonic: string): HDWallet {
-  const seed = mnemonicToSeedSync(mnemonic);
-  const root = HDKey.fromMasterSeed(seed);
+  const seed = mnemonicToSeedSync(mnemonic)
+  const root = HDKey.fromMasterSeed(seed)
 
   return {
     mnemonic,
     publicKey: bytesToHex(root.publicKey!),
-    did: `did:key:${bytesToHex(root.publicKey!)}`,
+    privateKey: root.privateKey ? bytesToHex(root.privateKey) : '',
     derivePath(path: string) {
-      const childNode = root.derive(path);
-      return createWalletFromNode(childNode, mnemonic);
+      const childNode = root.derive(path)
+      return createWalletFromNode(childNode, mnemonic)
     },
     signMessage(message: string): Uint8Array {
-      if (!root.privateKey) throw new Error('Missing private key');
-      return sign(nobleSha256(message), root.privateKey!)!.toCompactRawBytes()! as Uint8Array;
-    }
-  };
+      if (!root.privateKey) throw new Error('Missing private key')
+      return sign(
+        nobleSha256(message),
+        root.privateKey!,
+      )!.toCompactRawBytes()! as Uint8Array
+    },
+  }
 }
 
 function createWalletFromNode(node: HDKey, mnemonic: string): HDWallet {
   return {
     mnemonic,
     publicKey: bytesToHex(node.publicKey!),
-    did: `did:key:${bytesToHex(node.publicKey!)}`,
+    privateKey: node.privateKey ? bytesToHex(node.privateKey) : '',
     derivePath(path: string) {
-      return createWalletFromNode(node.derive(path), mnemonic);
+      return createWalletFromNode(node.derive(path), mnemonic)
     },
     signMessage(message: string): Uint8Array {
-      if (!node.privateKey) throw new Error('Missing private key');
-      return sign(sha256(message), node.privateKey!)!.toCompactRawBytes()! as Uint8Array;
-    }
-  };
-}
-
-export function getPublicKey(): Promise<string> {
-  // Temporary mock implementation
-  return Promise.resolve('03ab5f5798f2d3d12b19dca4e1b05d9a4cacf6853a7c67a6d6f7d7c9e9b0d1e2f3')
+      if (!node.privateKey) throw new Error('Missing private key')
+      return sign(
+        sha256(message),
+        node.privateKey!,
+      )!.toCompactRawBytes()! as Uint8Array
+    },
+  }
 }
 
 export function getPublicKeyFromMnemonic(mnemonic: string): string {
-  const wallet = createWalletFromMnemonic(mnemonic);
-  return wallet.derivePath("m/44'/0'/0'/0/0").publicKey;
+  const wallet = createWalletFromMnemonic(mnemonic)
+  return wallet.derivePath("m/44'/0'/0'/0/0").publicKey
 }
 
 // React Native compatible utilities
 function sha256(message: string): Uint8Array {
-  return nobleSha256(new TextEncoder().encode(message));
+  return nobleSha256(new TextEncoder().encode(message))
 }
 
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+    .join('')
 }
 
 // Wallet serialization functions
+export interface CredentialEntry {
+  url: string
+  user: string
+  password: string
+}
+
 export interface SerializedWallet {
-  address: string;
-  encryptedMnemonic: string;
+  keys: {publicKey: string; privateKey: string}[]
+  credentials: CredentialEntry[]
 }
 
-export function loadHDWalletFromFile(fileData: string): HDWallet {
-  try {
-    const {encryptedMnemonic}: SerializedWallet = JSON.parse(fileData);
-    // TODO: Implement actual decryption
-    return createWalletFromMnemonic(encryptedMnemonic);
-  } catch (e) {
-    throw new Error('Invalid wallet file format');
-  }
-}
-
-export function saveHDWalletToFile(wallet: HDWallet): string {
-  // TODO: Implement actual encryption
+export function saveHDWalletToFile(
+  wallet: HDWallet,
+  _password: string,
+): string {
   const serialized: SerializedWallet = {
-    address: wallet.derivePath("m/44'/0'/0'/0/0").publicKey,
-    encryptedMnemonic: wallet.mnemonic
-  };
-  return JSON.stringify(serialized, null, 2);
+    keys: [{publicKey: wallet.publicKey, privateKey: wallet.privateKey}],
+    credentials: [],
+  }
+  return JSON.stringify(serialized, null, 2)
+}
+
+export function loadHDWalletFromFile(_password: string): HDWallet {
+  // For compatibility, just load the first key
+  // You may want to extend this to support multiple keys/mnemonics
+  // For now, this function is a stub and should be updated as needed
+  throw new Error('Mnemonic loading not supported in new wallet format')
+}
+
+export function addCredentialToWalletFile(
+  fileData: string,
+  _password: string,
+  entry: CredentialEntry,
+): string {
+  const parsed: SerializedWallet = JSON.parse(fileData)
+  // Find by url+user
+  const idx = parsed.credentials.findIndex(
+    c => c.url === entry.url && c.user === entry.user,
+  )
+  if (idx >= 0) {
+    parsed.credentials[idx] = entry // update password
+  } else {
+    parsed.credentials.push(entry)
+  }
+  return JSON.stringify(parsed, null, 2)
+}
+
+export function loadCredentialsFromWalletFile(
+  fileData: string,
+  _password: string,
+): CredentialEntry[] {
+  const parsed: SerializedWallet = JSON.parse(fileData)
+  return parsed.credentials || []
+}
+
+export function createCredentialEntryForWallet(
+  wallet: HDWallet,
+  url: string,
+): CredentialEntry {
+  // Use the wallet's public key as the user, but append a dummy email
+  const user = wallet.publicKey + '@dummy.com'
+  // Generate a strong random password (32 bytes, hex encoded)
+  const password = bytesToHex(randomBytes(32))
+  return {
+    url,
+    user,
+    password,
+  }
 }

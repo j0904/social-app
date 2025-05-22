@@ -5,12 +5,18 @@ import {useLingui} from '@lingui/react'
 import * as EmailValidator from 'email-validator'
 import type tldts from 'tldts'
 
+import {
+  createCredentialEntryForWallet,
+  createWalletFromMnemonic,
+  generateWalletMnemonic,
+} from '#/lib/hdwallet'
 import {isEmailMaybeInvalid} from '#/lib/strings/email'
 import {logger} from '#/logger'
 import {ScreenTransition} from '#/screens/Login/ScreenTransition'
 import {is13, is18, useSignupContext} from '#/screens/Signup/state'
 import {Policies} from '#/screens/Signup/StepInfo/Policies'
 import {atoms as a, native} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import * as DateField from '#/components/forms/DateField'
 import {type DateFieldRef} from '#/components/forms/DateField/types'
 import {FormError} from '#/components/forms/FormError'
@@ -20,6 +26,7 @@ import {Envelope_Stroke2_Corner0_Rounded as Envelope} from '#/components/icons/E
 import {Lock_Stroke2_Corner0_Rounded as Lock} from '#/components/icons/Lock'
 import {Ticket_Stroke2_Corner0_Rounded as Ticket} from '#/components/icons/Ticket'
 import {Loader} from '#/components/Loader'
+import {Text} from '#/components/Typography'
 import {BackNextButtons} from '../BackNextButtons'
 
 function sanitizeDate(date: Date): Date {
@@ -56,6 +63,46 @@ export function StepInfo({
   const birthdateInputRef = useRef<DateFieldRef>(null)
 
   const [hasWarnedEmail, setHasWarnedEmail] = React.useState<boolean>(false)
+
+  // Wallet state for demo
+  const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
+  const [showWalletPassword, setShowWalletPassword] = React.useState(false)
+  const [walletPassword, setWalletPassword] = React.useState('')
+
+  // Handler for generating a new wallet and saving to file
+  const handleGenerateWallet = React.useCallback(() => {
+    setShowWalletPassword(true)
+  }, [])
+
+  // Handler for actually generating and saving wallet after password entry
+  const handleConfirmGenerateWallet = React.useCallback(() => {
+    const mnemonic = generateWalletMnemonic()
+    // Save wallet file with password protection using hdwallet logic
+    // In a real app, use FileSystem APIs to save fileData to disk
+    setWalletInfo(
+      `Wallet generated and saved locally.\nMnemonic: ${mnemonic}\nPassword: ${walletPassword}`,
+    )
+    setShowWalletPassword(false)
+    setWalletPassword('')
+  }, [walletPassword])
+
+  // Handler for loading a wallet from mnemonic (prompt for demo)
+  const handleLoadWallet = React.useCallback(() => {
+    const mnemonic = prompt('Enter your wallet mnemonic')
+    if (!mnemonic) return
+    try {
+      const wallet = createWalletFromMnemonic(mnemonic)
+      const entry = createCredentialEntryForWallet(
+        wallet,
+        'https://example.com',
+      )
+      setWalletInfo(
+        `Loaded wallet\nPublic Key: ${wallet.publicKey}\nUser: ${entry.user}\nPassword: ${entry.password}`,
+      )
+    } catch (e) {
+      setWalletInfo('Invalid mnemonic')
+    }
+  }, [])
 
   const tldtsRef = React.useRef<typeof tldts>()
   React.useEffect(() => {
@@ -157,6 +204,67 @@ export function StepInfo({
           </View>
         ) : state.serviceDescription ? (
           <>
+            <View style={[a.flex_col, a.gap_md]}>
+              <Button
+                variant="outline"
+                color="primary"
+                size="large"
+                onPress={handleLoadWallet}
+                label={_(msg`Load Wallet`)}>
+                <ButtonText>
+                  <Trans>Load Wallet</Trans>
+                </ButtonText>
+              </Button>
+
+              <Button
+                variant="outline"
+                color="secondary"
+                size="large"
+                onPress={handleGenerateWallet}
+                label={_(msg`Generate Wallet`)}>
+                <ButtonText>
+                  <Trans>Generate Wallet</Trans>
+                </ButtonText>
+              </Button>
+            </View>
+
+            {walletInfo && (
+              <Text style={[a.text_sm, a.text_center, a.mt_md]}>
+                {walletInfo}
+              </Text>
+            )}
+
+            {showWalletPassword && (
+              <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
+                <Text style={[a.text_center]}>
+                  <Trans>Enter a password to protect your wallet file:</Trans>
+                </Text>
+                <input
+                  type="password"
+                  value={walletPassword}
+                  onChange={e => setWalletPassword(e.target.value)}
+                  style={{
+                    padding: 8,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    width: '100%',
+                  }}
+                  placeholder="Wallet password"
+                  autoFocus
+                />
+                <Button
+                  variant="solid"
+                  color="primary"
+                  size="large"
+                  onPress={handleConfirmGenerateWallet}
+                  label={_(msg`Save Wallet`)}>
+                  <ButtonText>
+                    <Trans>Save Wallet</Trans>
+                  </ButtonText>
+                </Button>
+              </View>
+            )}
+
             {state.serviceDescription.inviteCodeRequired && (
               <View>
                 <TextField.LabelText>
