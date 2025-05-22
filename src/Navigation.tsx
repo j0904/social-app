@@ -21,6 +21,7 @@ import {buildStateObject} from '#/lib/routes/helpers'
 import {
   type AllNavigatorParams,
   type BottomTabNavigatorParams,
+  type WalletTabNavigatorParams,
   type FlatNavigatorParams,
   type HomeTabNavigatorParams,
   type MessagesTabNavigatorParams,
@@ -511,6 +512,10 @@ function TabsNavigator() {
         name="MessagesTab"
         getComponent={() => MessagesTabNavigator}
       />
+      <Tab.Screen
+        name="WalletTab"
+        getComponent={() => WalletTabNavigator}
+      />
     </Tab.Navigator>
   )
 }
@@ -594,6 +599,29 @@ function MyProfileTabNavigator() {
       />
       {commonScreens(MyProfileTab as typeof HomeTab)}
     </MyProfileTab.Navigator>
+  )
+}
+
+const WalletTab = createNativeStackNavigatorWithAuth<WalletTabNavigatorParams>()
+
+function WalletTabNavigator() {
+  const t = useTheme()
+  return (
+    <WalletTab.Navigator
+      screenOptions={{
+        animationDuration: 285,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        headerShown: false,
+        contentStyle: t.atoms.bg,
+      }}>
+      <MessagesTab.Screen
+        name="Wallet"
+        getComponent={() => require('#/screens/Wallet/Wallet').WalletScreen}
+        options={{requireAuth: true}}
+      />
+      {commonScreens(MessagesTab as typeof HomeTab)}
+    </MessagesTab.Navigator>
   )
 }
 

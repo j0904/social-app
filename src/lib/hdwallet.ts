@@ -68,6 +68,11 @@ export function getPublicKeyFromMnemonic(mnemonic: string): string {
   return wallet.derivePath("m/44'/0'/0'/0/0").publicKey
 }
 
+export function useWallet(): HDWallet | null {
+  // TODO: Implement actual wallet context
+  return null
+}
+
 // React Native compatible utilities
 function sha256(message: string): Uint8Array {
   return nobleSha256(new TextEncoder().encode(message))
