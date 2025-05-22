@@ -30,3 +30,11 @@ rename email (UI) to account (public key) and disable email check and reset
 wallet can add a list of password for system and do automatic login
 (no change of atproto) 
 add change password function with public key authentication
+
+
+add generate hd keys and save, load  it into local with password protection in src/lib/hdwallet.ts, write test for this
+
+
+No further changes are needed for this test file at this time. The next step is to add the "Load Wallet" button to the Create Account screen and integrate wallet-based authentication into the account creation flow.
+
+Would you like me to proceed with locating and editing the Create Account screen to add the "Load Wallet" button and begin wallet-based authentication integration?
