@@ -96,11 +96,44 @@ export function saveHDWalletToFile(
   return JSON.stringify(serialized, null, 2)
 }
 
-export function loadHDWalletFromFile(_password: string): HDWallet {
-  // For compatibility, just load the first key
-  // You may want to extend this to support multiple keys/mnemonics
-  // For now, this function is a stub and should be updated as needed
-  throw new Error('Mnemonic loading not supported in new wallet format')
+export function loadHDWalletFromFile(
+  fileData: string,
+  _password: string,
+): HDWallet {
+  // Parse the wallet file and reconstruct using the stored private key
+  const parsed: SerializedWallet = JSON.parse(fileData)
+  const key = parsed.keys[0]
+  if (!key) throw new Error('No key found in wallet file')
+  // Reconstruct the wallet from the stored private key using HDKey constructor
+  const hdkey = new HDKey({privateKey: Buffer.from(key.privateKey, 'hex')})
+  return {
+    mnemonic: '', // Not stored in this format
+    publicKey: key.publicKey,
+    privateKey: key.privateKey,
+    derivePath(path: string) {
+      const child = hdkey.derive(path)
+      return {
+        mnemonic: '',
+        publicKey: bytesToHex(child.publicKey!),
+        privateKey: child.privateKey ? bytesToHex(child.privateKey) : '',
+        derivePath: this.derivePath,
+        signMessage(message: string) {
+          if (!child.privateKey) throw new Error('Missing private key')
+          return sign(
+            sha256(message),
+            child.privateKey!,
+          )!.toCompactRawBytes()! as Uint8Array
+        },
+      }
+    },
+    signMessage(message: string) {
+      if (!hdkey.privateKey) throw new Error('Missing private key')
+      return sign(
+        sha256(message),
+        hdkey.privateKey!,
+      )!.toCompactRawBytes()! as Uint8Array
+    },
+  }
 }
 
 export function addCredentialToWalletFile(

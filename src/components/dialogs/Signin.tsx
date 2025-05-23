@@ -1,5 +1,8 @@
 import React from 'react'
 import {View} from 'react-native'
+import * as DocumentPicker from 'expo-document-picker'
+import * as FileSystem from 'expo-file-system'
+import * as Sharing from 'expo-sharing'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
@@ -50,29 +53,119 @@ function SigninDialogInner({}: {control: Dialog.DialogOuterProps['control']}) {
   const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
   const [showWalletPassword, setShowWalletPassword] = React.useState(false)
   const [walletPassword, setWalletPassword] = React.useState('')
+  const [generatedMnemonic, setGeneratedMnemonic] = React.useState<
+    string | null
+  >(null)
+  const [generatedFilename, setGeneratedFilename] = React.useState<
+    string | null
+  >(null)
 
   // Handler for generating a new wallet and saving to file
   const handleGenerateWallet = React.useCallback(() => {
+    const mnemonic = generateWalletMnemonic()
+    const filename = `wallet-${Date.now()}.txt`
+    setGeneratedMnemonic(mnemonic)
+    setGeneratedFilename(filename)
     setShowWalletPassword(true)
   }, [])
 
   // Handler for actually generating and saving wallet after password entry
-  const handleConfirmGenerateWallet = React.useCallback(() => {
-    const mnemonic = generateWalletMnemonic()
-    // Save wallet file with password protection using hdwallet logic
-    // In a real app, use FileSystem APIs to save fileData to disk
-    setWalletInfo(
-      `Wallet generated and saved locally.\nMnemonic: ${mnemonic}\nPassword: ${walletPassword}`,
-    )
+  const handleConfirmGenerateWallet = React.useCallback(async () => {
+    if (!generatedMnemonic || !generatedFilename) {
+      setWalletInfo('Error: Wallet not generated yet.')
+      setShowWalletPassword(false)
+      setWalletPassword('')
+      return
+    }
+
+    const mnemonic = generatedMnemonic
+    const filename = generatedFilename
+    const fileContent = mnemonic // For simplicity, saving just the mnemonic
+
+    try {
+      console.log('Attempting to save wallet file.')
+      console.log('isNative:', isNative)
+
+      if (isNative) {
+        const fileUri = FileSystem.documentDirectory + filename
+        console.log('Native: Saving to temporary URI:', fileUri)
+        await FileSystem.writeAsStringAsync(fileUri, fileContent)
+        console.log('Native: File written to temporary URI.')
+
+        const sharingAvailable = await Sharing.isAvailableAsync()
+        console.log('Native: Sharing available:', sharingAvailable)
+
+        if (sharingAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'text/plain',
+            UTI: 'public.plain-text',
+          })
+          setWalletInfo('Wallet generated and ready to be shared/saved.')
+          console.log('Native: Share sheet opened.')
+        } else {
+          setWalletInfo(
+            `Wallet generated and saved to app's document directory: ${fileUri}. Sharing not available.`,
+          )
+          console.log('Native: Sharing not available.')
+        }
+      } else {
+        // Web: Trigger file download
+        console.log('Web: Attempting to trigger download.')
+        const blob = new Blob([fileContent], {type: 'text/plain'})
+        const url = URL.createObjectURL(blob)
+        const downloadLink = document.createElement('a')
+        downloadLink.href = url
+        downloadLink.download = filename
+        document.body.appendChild(downloadLink)
+        downloadLink.click()
+        document.body.removeChild(downloadLink)
+        URL.revokeObjectURL(url)
+        setWalletInfo('Wallet generated and downloaded.')
+        console.log('Web: Download triggered.')
+      }
+    } catch (e: any) {
+      console.error('Error generating/saving wallet:', e)
+      setWalletInfo(
+        `Failed to generate/save wallet: ${e.message || 'Unknown error'}`,
+      )
+      console.log(
+        'Caught error during wallet save:',
+        e.message || 'Unknown error',
+      )
+    }
+
     setShowWalletPassword(false)
     setWalletPassword('')
-  }, [walletPassword])
+    setGeneratedMnemonic(null)
+    setGeneratedFilename(null)
+  }, [setWalletInfo, generatedMnemonic, generatedFilename])
 
-  // Handler for loading a wallet from mnemonic (prompt for demo)
-  const handleLoadWallet = React.useCallback(() => {
-    const mnemonic = prompt('Enter your wallet mnemonic')
-    if (!mnemonic) return
+  // Handler for loading a wallet from file
+  const handleLoadWallet = React.useCallback(async () => {
     try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: 'text/plain', // Assuming wallet files are plain text
+        copyToCacheDirectory: true,
+      })
+
+      if (res.canceled) {
+        setWalletInfo('Wallet load cancelled.')
+        return
+      }
+
+      const fileUri = res.assets[0].uri
+      let fileContent = ''
+
+      // Use fetch for both web and native, as expo-document-picker's URI should be readable
+      const response = await fetch(fileUri)
+      fileContent = await response.text()
+
+      const mnemonic = fileContent.trim()
+      if (!mnemonic) {
+        setWalletInfo('Selected file is empty or invalid.')
+        return
+      }
+
       const wallet = createWalletFromMnemonic(mnemonic)
       const entry = createCredentialEntryForWallet(
         wallet,
@@ -81,10 +174,11 @@ function SigninDialogInner({}: {control: Dialog.DialogOuterProps['control']}) {
       setWalletInfo(
         `Loaded wallet\nPublic Key: ${wallet.publicKey}\nUser: ${entry.user}\nPassword: ${entry.password}`,
       )
-    } catch (e) {
-      setWalletInfo('Invalid mnemonic')
+    } catch (e: any) {
+      console.error('Error loading wallet:', e)
+      setWalletInfo(`Failed to load wallet: ${e.message || 'Unknown error'}`)
     }
-  }, [])
+  }, [setWalletInfo])
 
   return (
     <Dialog.ScrollableInner
