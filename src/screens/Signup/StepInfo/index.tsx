@@ -1,14 +1,15 @@
 import React, {useRef} from 'react'
-import {type TextInput, View} from 'react-native'
+import {Platform, type TextInput, View} from 'react-native'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 import * as EmailValidator from 'email-validator'
 import type tldts from 'tldts'
 
 import {
-  createCredentialEntryForWallet,
   createWalletFromMnemonic,
   generateWalletMnemonic,
+  loadHDWalletFromFile,
+  saveHDWalletToFile,
 } from '#/lib/hdwallet'
 import {isEmailMaybeInvalid} from '#/lib/strings/email'
 import {logger} from '#/logger'
@@ -68,41 +69,145 @@ export function StepInfo({
   const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
   const [showWalletPassword, setShowWalletPassword] = React.useState(false)
   const [walletPassword, setWalletPassword] = React.useState('')
+  const [showWalletLoadPassword, setShowWalletLoadPassword] =
+    React.useState(false)
+  const [pendingWalletFile, setPendingWalletFile] = React.useState<File | null>(
+    null,
+  )
+  const [generatedMnemonic, setGeneratedMnemonic] = React.useState<
+    string | null
+  >(null)
+  const [generatedFilename, setGeneratedFilename] = React.useState<
+    string | null
+  >(null)
 
   // Handler for generating a new wallet and saving to file
   const handleGenerateWallet = React.useCallback(() => {
+    const mnemonic = generateWalletMnemonic()
+    const filename = `bsky-wallet-${Date.now()}.txt` // Example filename
+    setGeneratedMnemonic(mnemonic)
+    setGeneratedFilename(filename)
     setShowWalletPassword(true)
   }, [])
 
   // Handler for actually generating and saving wallet after password entry
-  const handleConfirmGenerateWallet = React.useCallback(() => {
-    const mnemonic = generateWalletMnemonic()
-    // Save wallet file with password protection using hdwallet logic
-    // In a real app, use FileSystem APIs to save fileData to disk
-    setWalletInfo(
-      `Wallet generated and saved locally.\nMnemonic: ${mnemonic}\nPassword: ${walletPassword}`,
-    )
+  const handleConfirmGenerateWallet = React.useCallback(async () => {
+    if (!generatedMnemonic || !generatedFilename) {
+      setWalletInfo('Error: Wallet not generated yet.')
+      return
+    }
+    try {
+      const wallet = createWalletFromMnemonic(generatedMnemonic)
+      const fileContent = saveHDWalletToFile(wallet, walletPassword)
+      if (Platform.OS === 'web') {
+        // Use File System Access API if available
+        if ('showSaveFilePicker' in window) {
+          try {
+            const opts = {
+              types: [
+                {
+                  description: 'Wallet Files',
+                  accept: {'application/json': ['.json', '.wallet', '.txt']},
+                },
+              ],
+              suggestedName: generatedFilename,
+            }
+            // @ts-ignore
+            const handle = await window.showSaveFilePicker(opts)
+            const writable = await handle.createWritable()
+            await writable.write(fileContent)
+            await writable.close()
+            setWalletInfo(`Wallet generated and saved to: ${handle.name}`)
+          } catch (e) {
+            setWalletInfo('Wallet save cancelled or failed.')
+          }
+        } else {
+          // fallback: download as file
+          const walletBlob = new Blob([fileContent], {type: 'application/json'})
+          const link = document.createElement('a')
+          link.href = URL.createObjectURL(walletBlob)
+          link.download = generatedFilename
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(link.href)
+          setWalletInfo(
+            `Wallet generated and downloaded as: ${generatedFilename}`,
+          )
+        }
+      } else {
+        setWalletInfo(
+          `File download triggered for native (simulated).\nFilename: ${generatedFilename}`,
+        )
+      }
+    } catch (e: any) {
+      setWalletInfo('Error saving wallet: ' + (e.message || e.toString()))
+    }
     setShowWalletPassword(false)
     setWalletPassword('')
-  }, [walletPassword])
+    setGeneratedMnemonic(null)
+    setGeneratedFilename(null)
+  }, [generatedMnemonic, generatedFilename, walletPassword])
 
-  // Handler for loading a wallet from mnemonic (prompt for demo)
-  const handleLoadWallet = React.useCallback(() => {
-    const mnemonic = prompt('Enter your wallet mnemonic')
-    if (!mnemonic) return
-    try {
-      const wallet = createWalletFromMnemonic(mnemonic)
-      const entry = createCredentialEntryForWallet(
-        wallet,
-        'https://example.com',
-      )
+  // Handler for loading a wallet from file (web only, native simulated)
+  const handleLoadWallet = React.useCallback(async () => {
+    if (Platform.OS === 'web') {
+      try {
+        // Create a hidden file input for wallet file selection
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json,.wallet,.txt,application/json,text/plain'
+        input.style.display = 'none'
+        document.body.appendChild(input)
+        input.click()
+        input.onchange = async () => {
+          if (!input.files || input.files.length === 0) {
+            setWalletInfo('No file selected.')
+            document.body.removeChild(input)
+            return
+          }
+          setPendingWalletFile(input.files[0])
+          setShowWalletLoadPassword(true)
+          document.body.removeChild(input)
+        }
+      } catch (e: any) {
+        setWalletInfo('Error loading wallet: ' + (e.message || e.toString()))
+      }
+    } else {
       setWalletInfo(
-        `Loaded wallet\nPublic Key: ${wallet.publicKey}\nUser: ${entry.user}\nPassword: ${entry.password}`,
+        'Wallet loading from file is not implemented for native (simulated).',
       )
-    } catch (e) {
-      setWalletInfo('Invalid mnemonic')
     }
   }, [])
+
+  // Handler for confirming wallet load with password
+  const handleConfirmLoadWallet = React.useCallback(async () => {
+    if (!pendingWalletFile) {
+      setWalletInfo('No wallet file selected.')
+      setShowWalletLoadPassword(false)
+      return
+    }
+    try {
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const fileData = reader.result as string
+          const wallet = loadHDWalletFromFile(fileData, walletPassword)
+          setWalletInfo(`Wallet loaded. Public Key: ${wallet.publicKey}`)
+        } catch (e: any) {
+          setWalletInfo('Failed to load wallet: ' + (e.message || e.toString()))
+        }
+        setShowWalletLoadPassword(false)
+        setWalletPassword('')
+        setPendingWalletFile(null)
+      }
+      reader.readAsText(pendingWalletFile)
+    } catch (e: any) {
+      setWalletInfo('Error reading wallet file: ' + (e.message || e.toString()))
+      setShowWalletLoadPassword(false)
+      setPendingWalletFile(null)
+    }
+  }, [pendingWalletFile, walletPassword])
 
   const tldtsRef = React.useRef<typeof tldts>()
   React.useEffect(() => {
@@ -265,6 +370,37 @@ export function StepInfo({
               </View>
             )}
 
+            {showWalletLoadPassword && (
+              <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
+                <Text style={[a.text_center]}>
+                  <Trans>Enter your wallet password to load the file:</Trans>
+                </Text>
+                <input
+                  type="password"
+                  value={walletPassword}
+                  onChange={e => setWalletPassword(e.target.value)}
+                  style={{
+                    padding: 8,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    width: '100%',
+                  }}
+                  placeholder="Wallet password"
+                  autoFocus
+                />
+                <Button
+                  variant="solid"
+                  color="primary"
+                  size="large"
+                  onPress={handleConfirmLoadWallet}
+                  label={_(msg`Load Wallet`)}>
+                  <ButtonText>
+                    <Trans>Load Wallet</Trans>
+                  </ButtonText>
+                </Button>
+              </View>
+            )}
+
             {state.serviceDescription.inviteCodeRequired && (
               <View>
                 <TextField.LabelText>
@@ -388,13 +524,14 @@ export function StepInfo({
         ) : undefined}
       </View>
       <BackNextButtons
-        hideNext={!is13(state.dateOfBirth)}
+        isNextDisabled={!is13(state.dateOfBirth)}
         showRetry={isServerError}
         isLoading={state.isLoading}
         onBackPress={onPressBack}
         onNextPress={onNextPress}
         onRetryPress={refetchServer}
         overrideNextText={hasWarnedEmail ? _(msg`It's correct`) : undefined}
+        nextTestID="nextBtn"
       />
     </ScreenTransition>
   )
