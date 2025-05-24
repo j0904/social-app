@@ -38,3 +38,5 @@ add generate hd keys and save, load  it into local with password protection in s
 No further changes are needed for this test file at this time. The next step is to add the "Load Wallet" button to the Create Account screen and integrate wallet-based authentication into the account creation flow.
 
 Would you like me to proceed with locating and editing the Create Account screen to add the "Load Wallet" button and begin wallet-based authentication integration?
+
+for post it can use bigtangle create block new type for message only, it will be not collected in reward chain. It will multiple saved in object store alibaba cloud, etc.

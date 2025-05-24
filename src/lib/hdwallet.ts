@@ -1,4 +1,5 @@
 import {randomBytes} from '@noble/ciphers/webcrypto'
+import {ripemd160} from '@noble/hashes/ripemd160'
 import {sha256 as nobleSha256} from '@noble/hashes/sha256'
 import {sign} from '@noble/secp256k1'
 import {HDKey} from '@scure/bip32'
@@ -105,7 +106,10 @@ export function loadHDWalletFromFile(
   const key = parsed.keys[0]
   if (!key) throw new Error('No key found in wallet file')
   // Reconstruct the wallet from the stored private key using HDKey constructor
-  const hdkey = new HDKey({privateKey: Buffer.from(key.privateKey, 'hex')})
+  const privateKeyBytes = new Uint8Array(
+    key.privateKey.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || [],
+  )
+  const hdkey = new HDKey({privateKey: privateKeyBytes})
   return {
     mnemonic: '', // Not stored in this format
     publicKey: key.publicKey,
@@ -162,13 +166,64 @@ export function loadCredentialsFromWalletFile(
   return parsed.credentials || []
 }
 
+// Helper: Convert secp256k1 public key (hex) to Bitcoin address (P2PKH, mainnet)
+function publicKeyToBitcoinAddress(publicKeyHex: string): string {
+  // Convert hex to bytes
+  const pubKeyBytes = new Uint8Array(
+    publicKeyHex.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || [],
+  )
+
+  // SHA-256 followed by RIPEMD-160
+  const shaHash = nobleSha256(pubKeyBytes)
+  const hash160 = ripemd160(shaHash)
+
+  // Add version byte (0x00 for mainnet)
+  const versionedPayload = new Uint8Array(1 + hash160.length)
+  versionedPayload[0] = 0x00 // Mainnet P2PKH version
+  versionedPayload.set(hash160, 1)
+
+  // Calculate checksum
+  const checksum = nobleSha256(nobleSha256(versionedPayload)).slice(0, 4)
+
+  // Combine payload and checksum
+  const addressBytes = new Uint8Array([...versionedPayload, ...checksum])
+
+  // Base58 encoding
+  return base58Encode(addressBytes)
+}
+
+// Base58 alphabet for Bitcoin addresses
+const BASE58_ALPHABET =
+  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+function base58Encode(buffer: Uint8Array): string {
+  // Convert bytes to bigint
+  let hexString = Array.from(buffer, byte =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+  let x = BigInt('0x' + hexString)
+
+  // Encode to base58
+  let result = ''
+  while (x > 0n) {
+    const [quotient, remainder] = [x / 58n, x % 58n]
+    result = BASE58_ALPHABET[Number(remainder)] + result
+    x = quotient
+  }
+
+  // Add leading '1's for zero bytes
+  for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
+    result = '1' + result
+  }
+
+  return result
+}
+
 export function createCredentialEntryForWallet(
   wallet: HDWallet,
   url: string,
 ): CredentialEntry {
-  // Use the wallet's public key as the user, but append a dummy email
-  const user = wallet.publicKey + '@dummy.com'
-  // Generate a strong random password (32 bytes, hex encoded)
+  const user = publicKeyToBitcoinAddress(wallet.publicKey) + '@dummy.com'
   const password = bytesToHex(randomBytes(32))
   return {
     url,
