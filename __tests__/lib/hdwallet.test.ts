@@ -1,90 +1,64 @@
 import {
-  addCredentialToWalletFile,
-  createWalletFromMnemonic,
-  type CredentialEntry,
+  createWallet,
   generateWalletMnemonic,
-  loadCredentialsFromWalletFile,
+  loadWallet,
   saveHDWalletToFile,
+  type WalletFile,
 } from '../../src/lib/hdwallet'
 
 describe('HDWallet', () => {
-  it('should generate a mnemonic and create a wallet', () => {
-    const mnemonic = generateWalletMnemonic()
-    const wallet = createWalletFromMnemonic(mnemonic)
-    expect(typeof mnemonic).toBe('string')
-    expect(wallet).toHaveProperty('mnemonic', mnemonic)
-    expect(typeof wallet.publicKey).toBe('string')
-    expect(typeof wallet.derivePath).toBe('function')
-    expect(typeof wallet.signMessage).toBe('function')
+  let testMnemonic: string
+  let testWallet: WalletFile
+
+  beforeAll(() => {
+    testMnemonic = generateWalletMnemonic()
+    testWallet = createWallet(testMnemonic)
   })
 
-  it('should save a wallet to file with public and private key', () => {
-    const mnemonic = generateWalletMnemonic()
-    const wallet = createWalletFromMnemonic(mnemonic)
-    const password = 'testpass'
-    const fileData = saveHDWalletToFile(wallet, password)
-    const parsed = JSON.parse(fileData)
-    expect(Array.isArray(parsed.keys)).toBe(true)
-    expect(parsed.keys[0]).toHaveProperty('publicKey', wallet.publicKey)
-    expect(parsed.keys[0]).toHaveProperty('privateKey')
-    expect(Array.isArray(parsed.credentials)).toBe(true)
+  test('generates valid 24-word mnemonic', () => {
+    expect(testMnemonic.split(' ').length).toBe(24)
   })
 
-  it('should add and update credentials for the same url+user', () => {
-    const mnemonic = generateWalletMnemonic()
-    const wallet = createWalletFromMnemonic(mnemonic)
-    const password = 'testpass'
-    let fileData = saveHDWalletToFile(wallet, password)
-    const entry1: CredentialEntry = {
-      url: 'https://example.com',
-      user: 'a@example.com',
-      password: 'pw1',
-    }
-    fileData = addCredentialToWalletFile(fileData, password, entry1)
-    const entry2: CredentialEntry = {
-      url: 'https://example.com',
-      user: 'b@example.com',
-      password: 'pw2',
-    }
-    fileData = addCredentialToWalletFile(fileData, password, entry2)
-    const entry3: CredentialEntry = {
-      url: 'https://example.com',
-      user: 'a@example.com',
-      password: 'pw3',
-    }
-    fileData = addCredentialToWalletFile(fileData, password, entry3)
-     
-    const creds = loadCredentialsFromWalletFile(fileData, password)
-    expect(creds.length).toBe(2)
-    expect(creds.find(c => c.user === 'a@example.com')!.password).toBe('pw3')
-    expect(creds.find(c => c.user === 'b@example.com')!.password).toBe('pw2')
+  test('generates new account with valid properties', () => {
+    const account = createWallet(generateWalletMnemonic())
+    expect(account.wallet.mnemonic.split(' ').length).toBe(24)
+    expect(account.wallet.publicKey).toMatch(/^[0-9a-f]+$/)
+    expect(account.wallet.privateKey).toMatch(/^[0-9a-f]+$/)
+    expect(account.credentials.user).toContain('@bigt.ai')
   })
 
-  it('should keep credentials for different urls separate', () => {
-    const mnemonic = generateWalletMnemonic()
-    const wallet = createWalletFromMnemonic(mnemonic)
-    const password = 'testpass'
-    let fileData = saveHDWalletToFile(wallet, password)
-    const entry1: CredentialEntry = {
-      url: 'https://site1.com',
-      user: 'a@site1.com',
-      password: 'pw1',
-    }
-    const entry2: CredentialEntry = {
-      url: 'https://site2.com',
-      user: 'b@site2.com',
-      password: 'pw2',
-    }
-    fileData = addCredentialToWalletFile(fileData, password, entry1)
-    fileData = addCredentialToWalletFile(fileData, password, entry2)
-     
-    const creds = loadCredentialsFromWalletFile(fileData, password)
-    expect(creds.length).toBe(2)
-    expect(creds.find(c => c.url === 'https://site1.com')!.user).toBe(
-      'a@site1.com',
-    )
-    expect(creds.find(c => c.url === 'https://site2.com')!.user).toBe(
-      'b@site2.com',
-    )
+  test('creates wallet with correct credentials', () => {
+    expect(testWallet.wallet).toHaveProperty('publicKey')
+    expect(testWallet.wallet).toHaveProperty('privateKey')
+    expect(testWallet.credentials.url).toMatch(/^https?:\/\//)
+    expect(testWallet.credentials.user).toMatch(/@bigt\.ai$/)
+    expect(testWallet.credentials.password).toHaveLength(64)
+  })
+
+  test('saves and loads wallet with credentials', () => {
+    const walletData = saveHDWalletToFile(testWallet, 'test123')
+    const loadedWallet = loadWallet(walletData)
+
+    expect(loadedWallet.wallet.publicKey).toBe(testWallet.wallet.publicKey)
+    expect(loadedWallet.wallet.privateKey).toBe(testWallet.wallet.privateKey)
+    expect(loadedWallet.credentials).toEqual(testWallet.credentials)
+  })
+
+  test('signs messages consistently', () => {
+    const message = 'Test message for cryptographic signing'
+    const signature1 = testWallet.wallet.signMessage(message)
+    const signature2 = testWallet.wallet.signMessage(message)
+
+    expect(signature1).toEqual(signature2)
+    expect(signature1.length).toBe(64)
+  })
+
+  test('rejects invalid mnemonics', () => {
+    expect(() => createWallet('invalid mnemonic phrase')).toThrow()
+  })
+
+  test('handles invalid wallet files', () => {
+    expect(() => loadWallet('invalid json')).toThrow()
+    expect(() => loadWallet('{}')).toThrow('No key found in wallet file')
   })
 })
