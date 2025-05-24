@@ -6,6 +6,7 @@ import * as EmailValidator from 'email-validator'
 import type tldts from 'tldts'
 
 import {
+  createCredentialEntryForWallet, // <-- add this import
   createWalletFromMnemonic,
   generateWalletMnemonic,
   loadHDWalletFromFile,
@@ -55,9 +56,7 @@ export function StepInfo({
   const {state, dispatch} = useSignupContext()
 
   const inviteCodeValueRef = useRef<string>(state.inviteCode)
-  const emailValueRef = useRef<string>(state.email)
   const prevEmailValueRef = useRef<string>(state.email)
-  const passwordValueRef = useRef<string>(state.password)
 
   const emailInputRef = useRef<TextInput>(null)
   const passwordInputRef = useRef<TextInput>(null)
@@ -99,6 +98,14 @@ export function StepInfo({
     try {
       const wallet = createWalletFromMnemonic(generatedMnemonic)
       const fileContent = saveHDWalletToFile(wallet, walletPassword)
+      // Create a CredentialEntry for the wallet and set email/password in UI
+      const entry = createCredentialEntryForWallet(
+        wallet,
+        state.serviceUrl || 'https://bsky.app',
+      )
+      dispatch({type: 'setEmail', value: entry.user})
+      dispatch({type: 'setPassword', value: entry.password})
+      dispatch({type: 'clearError'}) // Clear any existing validation errors
       if (Platform.OS === 'web') {
         // Use File System Access API if available
         if ('showSaveFilePicker' in window) {
@@ -147,7 +154,13 @@ export function StepInfo({
     setWalletPassword('')
     setGeneratedMnemonic(null)
     setGeneratedFilename(null)
-  }, [generatedMnemonic, generatedFilename, walletPassword])
+  }, [
+    generatedMnemonic,
+    generatedFilename,
+    walletPassword,
+    dispatch,
+    state.serviceUrl,
+  ])
 
   // Handler for loading a wallet from file (web only, native simulated)
   const handleLoadWallet = React.useCallback(async () => {
@@ -222,9 +235,9 @@ export function StepInfo({
 
   const onNextPress = () => {
     const inviteCode = inviteCodeValueRef.current
-    const email = emailValueRef.current
+    const email = state.email
     const emailChanged = prevEmailValueRef.current !== email
-    const password = passwordValueRef.current
+    const password = state.password
 
     if (!is13(state.dateOfBirth)) {
       return
@@ -282,8 +295,6 @@ export function StepInfo({
     }
 
     dispatch({type: 'setInviteCode', value: inviteCode})
-    dispatch({type: 'setEmail', value: email})
-    dispatch({type: 'setPassword', value: password})
     dispatch({type: 'next'})
     logger.metric(
       'signup:nextPressed',
@@ -442,7 +453,8 @@ export function StepInfo({
                   testID="emailInput"
                   inputRef={emailInputRef}
                   onChangeText={value => {
-                    emailValueRef.current = value.trim()
+                    // emailValueRef.current = value.trim() // No longer needed as state.email is directly used
+                    dispatch({type: 'setEmail', value: value.trim()})
                     if (hasWarnedEmail) {
                       setHasWarnedEmail(false)
                     }
@@ -455,7 +467,7 @@ export function StepInfo({
                     }
                   }}
                   label={_(msg`Enter your email address`)}
-                  defaultValue={state.email}
+                  value={state.email}
                   autoCapitalize="none"
                   autoComplete="email"
                   keyboardType="email-address"
@@ -477,13 +489,14 @@ export function StepInfo({
                   testID="passwordInput"
                   inputRef={passwordInputRef}
                   onChangeText={value => {
-                    passwordValueRef.current = value
+                    // passwordValueRef.current = value // No longer needed as state.password is directly used
+                    dispatch({type: 'setPassword', value})
                     if (state.errorField === 'password' && value.length >= 8) {
                       dispatch({type: 'clearError'})
                     }
                   }}
                   label={_(msg`Choose your password`)}
-                  defaultValue={state.password}
+                  value={state.password}
                   secureTextEntry
                   autoComplete="new-password"
                   autoCapitalize="none"
@@ -531,7 +544,6 @@ export function StepInfo({
         onNextPress={onNextPress}
         onRetryPress={refetchServer}
         overrideNextText={hasWarnedEmail ? _(msg`It's correct`) : undefined}
-        nextTestID="nextBtn"
       />
     </ScreenTransition>
   )
