@@ -6,10 +6,9 @@ import * as EmailValidator from 'email-validator'
 import type tldts from 'tldts'
 
 import {
-  createCredentialEntryForWallet, // <-- add this import
-  createWalletFromMnemonic,
+  createWallet,
   generateWalletMnemonic,
-  loadHDWalletFromFile,
+  loadWallet,
   saveHDWalletToFile,
 } from '#/lib/hdwallet'
 import {isEmailMaybeInvalid} from '#/lib/strings/email'
@@ -104,13 +103,12 @@ export function StepInfo({
       return
     }
     try {
-      const wallet = createWalletFromMnemonic(generatedMnemonic)
-      const fileContent = saveHDWalletToFile(wallet, walletPassword)
-      // Create a CredentialEntry for the wallet and set email/password in UI
-      const entry = createCredentialEntryForWallet(
-        wallet,
-        state.serviceUrl || 'https://bsky.app',
+      const {wallet, credentials: entry} = createWallet(generatedMnemonic)
+      const fileContent = saveHDWalletToFile(
+        {wallet, credentials: entry},
+        walletPassword,
       )
+      // Create a CredentialEntry for the wallet and set email/password in UI
       dispatch({type: 'setEmail', value: entry.user})
       dispatch({type: 'setPassword', value: entry.password})
       dispatch({type: 'clearError'}) // Clear any existing validation errors
@@ -162,13 +160,7 @@ export function StepInfo({
     setWalletPassword('')
     setGeneratedMnemonic(null)
     setGeneratedFilename(null)
-  }, [
-    generatedMnemonic,
-    generatedFilename,
-    walletPassword,
-    dispatch,
-    state.serviceUrl,
-  ])
+  }, [generatedMnemonic, generatedFilename, walletPassword, dispatch])
 
   // Handler for loading a wallet from file (web only, native simulated)
   const handleLoadWallet = React.useCallback(async () => {
@@ -213,7 +205,7 @@ export function StepInfo({
       reader.onload = () => {
         try {
           const fileData = reader.result as string
-          const wallet = loadHDWalletFromFile(fileData, walletPassword)
+          const {wallet} = loadWallet(fileData)
           setWalletInfo(`Wallet loaded. Public Key: ${wallet.publicKey}`)
         } catch (e: any) {
           setWalletInfo('Failed to load wallet: ' + (e.message || e.toString()))
@@ -228,7 +220,7 @@ export function StepInfo({
       setShowWalletLoadPassword(false)
       setPendingWalletFile(null)
     }
-  }, [pendingWalletFile, walletPassword])
+  }, [pendingWalletFile])
 
   const tldtsRef = React.useRef<typeof tldts>()
 >>>>>>> cfa2f737c (add load generate wallet in create account)
