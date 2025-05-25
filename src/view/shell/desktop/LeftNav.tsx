@@ -173,7 +173,10 @@ function ProfileCard() {
                             a.leading_snug,
                             t.atoms.text_contrast_medium,
                           ]}
-                          numberOfLines={1}>
+                          numberOfLines={1}
+                          emoji={true}>
+                          {' '}
+                          {/* Added emoji prop */}
                           {sanitizeHandle(profile.handle, '@')}
                         </Text>
                       </View>
