@@ -2645,8 +2645,18 @@ msgstr "Par défaut"
 msgid "Default icons"
 msgstr "Icônes par défaut"
 
+<<<<<<< HEAD
 #: src/components/dms/MessageContextMenu.tsx:202
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:736
+=======
+msgid "Generate Wallet"
+msgstr "Générer un portefeuille"
+
+msgid "Load Wallet"
+msgstr "Charger un portefeuille"
+
+#: src/components/dms/MessageContextMenu.tsx:187
+>>>>>>> 44010d626 (generate and load wallet translation)
 #: src/screens/Messages/components/ChatStatusInfo.tsx:55
 #: src/screens/ProfileList/components/MoreOptionsMenu.tsx:280
 #: src/screens/Settings/AppPasswords.tsx:211

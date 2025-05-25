@@ -4065,7 +4065,15 @@ msgstr "De <0/>"
 msgid "Generate a starter pack"
 msgstr "Chenera un paquet d'inicio"
 
+<<<<<<< HEAD
 #: src/view/shell/Drawer.tsx:372
+=======
+#: src/screens/Login/Wallet.tsx:XX
+msgid "Generate Wallet"
+msgstr ""
+
+#: src/view/shell/Drawer.tsx:347
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Get help"
 msgstr "Obtiene aduya"
 
@@ -5123,7 +5131,15 @@ msgstr ""
 msgid "Live link"
 msgstr ""
 
+<<<<<<< HEAD
 #: src/screens/Search/Explore.tsx:83
+=======
+#: src/screens/Login/Wallet.tsx:XX
+msgid "Load Wallet"
+msgstr ""
+
+#: src/screens/Search/Explore.tsx:87
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Load more"
 msgstr "Cargar-ne mas"
 

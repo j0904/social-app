@@ -2960,6 +2960,12 @@ msgstr "别担心！你现有的对话及设置都已保存，只需验证你已
 msgid "Done"
 msgstr "完成"
 
+msgid "Generate Wallet"
+msgstr "生成钱包"
+
+msgid "Load Wallet"
+msgstr "加载钱包"
+
 #: src/view/com/modals/UserAddRemoveLists.tsx:113
 #: src/view/com/modals/UserAddRemoveLists.tsx:116
 msgctxt "action"

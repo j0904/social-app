@@ -2714,9 +2714,21 @@ msgstr "Radera meddelandet för mig"
 msgid "Delete my account"
 msgstr "Radera mitt konto"
 
+<<<<<<< HEAD
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:717
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:719
 #: src/view/com/composer/Composer.tsx:967
+=======
+msgid "Generate Wallet"
+msgstr "Skapa plånbok"
+
+msgid "Load Wallet"
+msgstr "Ladda plånbok"
+
+#: src/view/com/composer/Composer.tsx:835
+#: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:759
+#: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:761
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Delete post"
 msgstr "Radera inlägg"
 

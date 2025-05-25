@@ -3015,6 +3015,19 @@ msgstr "例如：張藍天"
 msgid "e.g. alice.com"
 msgstr "例如：alice.com"
 
+<<<<<<< HEAD
+=======
+msgid "Generate Wallet"
+msgstr "產生錢包"
+
+msgid "Load Wallet"
+msgstr "載入錢包"
+
+#: src/view/com/modals/EditProfile.tsx:223
+msgid "e.g. Artist, dog-lover, and avid reader."
+msgstr "例如：藝術家、狗派人士或書迷。"
+
+>>>>>>> 44010d626 (generate and load wallet translation)
 #: src/lib/moderation/useGlobalLabelStrings.ts:43
 msgid "E.g. artistic nudes."
 msgstr "例如：人體藝術。"

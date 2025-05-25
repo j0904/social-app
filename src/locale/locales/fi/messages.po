@@ -2855,6 +2855,12 @@ msgstr "Hylätäänkö luonnos?"
 msgid "Discard post?"
 msgstr "Hylätäänkö julkaisu?"
 
+msgid "Generate Wallet"
+msgstr "Luo lompakko"
+
+msgid "Load Wallet"
+msgstr "Lataa lompakko"
+
 #: src/screens/Settings/components/PwiOptOut.tsx:87
 #: src/screens/Settings/components/PwiOptOut.tsx:91
 msgid "Discourage apps from showing my account to logged-out users"

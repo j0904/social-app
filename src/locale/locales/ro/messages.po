@@ -2769,7 +2769,17 @@ msgstr "Text alternativ descriptiv"
 msgid "Detach quote"
 msgstr "Detașare citat"
 
+<<<<<<< HEAD
 #: src/components/PostControls/PostMenu/PostMenuItems.tsx:767
+=======
+msgid "Generate Wallet"
+msgstr "Generează portofel"
+
+msgid "Load Wallet"
+msgstr "Încarcă portofel"
+
+#: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:857
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Detach quote post?"
 msgstr "Detașați postarea citat?"
 

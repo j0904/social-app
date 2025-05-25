@@ -2625,7 +2625,17 @@ msgstr "Fecha de nacimiento"
 msgid "Deactivate account"
 msgstr "Desactivar cuenta"
 
+<<<<<<< HEAD
 #: src/screens/Settings/Settings.tsx:455
+=======
+msgid "Generate Wallet"
+msgstr "Generar billetera"
+
+msgid "Load Wallet"
+msgstr "Cargar billetera"
+
+#: src/screens/Settings/Settings.tsx:397
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Debug Moderation"
 msgstr "Moderación de depuración"
 

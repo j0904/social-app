@@ -2689,7 +2689,17 @@ msgstr "Ezabatu txat-adierazpenaren erregistroa"
 msgid "Delete conversation"
 msgstr "Ezabatu elkarrizketa"
 
+<<<<<<< HEAD
 #: src/components/dms/AfterReportDialog.tsx:148
+=======
+#: src/components/dms/ReportDialog.tsx:320
+
+msgid "Generate Wallet"
+msgstr "Sortu zorroa"
+
+msgid "Load Wallet"
+msgstr "Kargatu zorroa"
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Delete Conversation"
 msgstr "Ezabatu Elkarrizketa"
 

@@ -2814,6 +2814,7 @@ msgstr "Вимкнути двофакторну автентифікацію е�
 msgid "Disable haptic feedback"
 msgstr "Вимкнути тактильний зворотний зв'язок"
 
+<<<<<<< HEAD
 #: src/components/dialogs/PostInteractionSettingsDialog.tsx:622
 msgid "Disable quote posts of this post"
 msgstr ""
@@ -2823,6 +2824,15 @@ msgid "Disable replies entirely"
 msgstr ""
 
 #: src/components/Post/Embed/VideoEmbed/VideoEmbedInner/web-controls/VideoControls.tsx:388
+=======
+msgid "Generate Wallet"
+msgstr "Створити гаманець"
+
+msgid "Load Wallet"
+msgstr "Завантажити гаманець"
+
+#: src/view/com/util/post-embeds/VideoEmbedInner/web-controls/VideoControls.tsx:386
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Disable subtitles"
 msgstr "Вимкнути субтитри"
 

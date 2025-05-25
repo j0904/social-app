@@ -2773,6 +2773,12 @@ msgstr "Odłącz cytat"
 msgid "Detach quote post?"
 msgstr "Odłączyć cytat?"
 
+msgid "Generate Wallet"
+msgstr "Wygeneruj portfel"
+
+msgid "Load Wallet"
+msgstr "Załaduj portfel"
+
 #: src/screens/Settings/AboutSettings.tsx:140
 msgctxt "toast"
 msgid "Developer mode disabled"

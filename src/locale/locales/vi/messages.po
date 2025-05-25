@@ -2759,6 +2759,23 @@ msgstr ""
 msgid "Description"
 msgstr "Mô tả"
 
+<<<<<<< HEAD
+=======
+#: src/screens/Profile/Header/EditProfileDialog.tsx:389
+msgid "Description is too long"
+msgstr "Mô tả quá dài"
+
+#: src/screens/Profile/Header/EditProfileDialog.tsx:390
+msgid "Description is too long. {DESCRIPTION_MAX_GRAPHEMES, plural, other {The maximum number of characters is #.}}"
+
+msgid "Generate Wallet"
+msgstr "Tạo ví"
+
+msgid "Load Wallet"
+msgstr "Tải ví"
+msgstr "Mô tả quá dài. {DESCRIPTION_MAX_GRAPHEMES, plural, other {Số kí tự tối đa cho phép là #.}}"
+
+>>>>>>> 44010d626 (generate and load wallet translation)
 #: src/view/com/composer/GifAltText.tsx:150
 #: src/view/com/composer/photos/ImageAltTextDialog.tsx:113
 msgid "Descriptive alt text"

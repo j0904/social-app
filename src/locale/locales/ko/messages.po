@@ -2960,6 +2960,12 @@ msgstr "걱정 마세요! 모든 기존 메시지와 설정은 저장되며 성�
 msgid "Done"
 msgstr "완료"
 
+msgid "Generate Wallet"
+msgstr "지갑 생성"
+
+msgid "Load Wallet"
+msgstr "지갑 불러오기"
+
 #: src/view/com/modals/UserAddRemoveLists.tsx:113
 #: src/view/com/modals/UserAddRemoveLists.tsx:116
 msgctxt "action"

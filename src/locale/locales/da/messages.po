@@ -2759,6 +2759,23 @@ msgstr "Slettet liste"
 msgid "Description"
 msgstr "Beskrivelse"
 
+<<<<<<< HEAD
+=======
+#: src/screens/Profile/Header/EditProfileDialog.tsx:389
+msgid "Description is too long"
+msgstr "Beskrivelse er for lang"
+
+#: src/screens/Profile/Header/EditProfileDialog.tsx:390
+msgid "Description is too long. {DESCRIPTION_MAX_GRAPHEMES, plural, other {The maximum number of characters is #.}}"
+msgstr "Beskrivelse er for lang. {DESCRIPTION_MAX_GRAPHEMES, plural, one {}other {Det maksimale antal tegn er #.}}"
+
+msgid "Generate Wallet"
+msgstr "Generer tegnebog"
+
+msgid "Load Wallet"
+msgstr "Indlæs tegnebog"
+
+>>>>>>> 44010d626 (generate and load wallet translation)
 #: src/view/com/composer/GifAltText.tsx:150
 #: src/view/com/composer/photos/ImageAltTextDialog.tsx:113
 msgid "Descriptive alt text"

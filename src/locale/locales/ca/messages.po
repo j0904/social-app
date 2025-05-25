@@ -2673,8 +2673,19 @@ msgstr "Elimina la contrasenya d'aplicació"
 msgid "Delete app password?"
 msgstr "Vols eliminar la contrasenya d'aplicació?"
 
+<<<<<<< HEAD
 #: src/screens/Messages/components/RequestButtons.tsx:325
 #: src/screens/Messages/components/RequestButtons.tsx:331
+=======
+msgid "Generate Wallet"
+msgstr "Genera cartera"
+
+msgid "Load Wallet"
+msgstr "Carrega cartera"
+
+#: src/screens/Messages/components/RequestButtons.tsx:316
+#: src/screens/Messages/components/RequestButtons.tsx:323
+>>>>>>> 44010d626 (generate and load wallet translation)
 msgid "Delete chat"
 msgstr "Elimina el xat"
 
