@@ -8,7 +8,6 @@ import type tldts from 'tldts'
 import {
   createWallet,
   generateWalletMnemonic,
-  loadWallet,
   saveHDWalletToFile,
 } from '#/lib/hdwallet'
 import {isEmailMaybeInvalid} from '#/lib/strings/email'
@@ -75,11 +74,6 @@ export function StepInfo({
   const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
   const [showWalletPassword, setShowWalletPassword] = React.useState(false)
   const [walletPassword, setWalletPassword] = React.useState('')
-  const [showWalletLoadPassword, setShowWalletLoadPassword] =
-    React.useState(false)
-  const [pendingWalletFile, setPendingWalletFile] = React.useState<File | null>(
-    null,
-  )
   const [generatedMnemonic, setGeneratedMnemonic] = React.useState<
     string | null
   >(null)
@@ -161,66 +155,6 @@ export function StepInfo({
     setGeneratedMnemonic(null)
     setGeneratedFilename(null)
   }, [generatedMnemonic, generatedFilename, walletPassword, dispatch])
-
-  // Handler for loading a wallet from file (web only, native simulated)
-  const handleLoadWallet = React.useCallback(async () => {
-    if (Platform.OS === 'web') {
-      try {
-        // Create a hidden file input for wallet file selection
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = '.json,.wallet,.txt,application/json,text/plain'
-        input.style.display = 'none'
-        document.body.appendChild(input)
-        input.click()
-        input.onchange = async () => {
-          if (!input.files || input.files.length === 0) {
-            setWalletInfo('No file selected.')
-            document.body.removeChild(input)
-            return
-          }
-          setPendingWalletFile(input.files[0])
-          setShowWalletLoadPassword(true)
-          document.body.removeChild(input)
-        }
-      } catch (e: any) {
-        setWalletInfo('Error loading wallet: ' + (e.message || e.toString()))
-      }
-    } else {
-      setWalletInfo(
-        'Wallet loading from file is not implemented for native (simulated).',
-      )
-    }
-  }, [])
-
-  // Handler for confirming wallet load with password
-  const handleConfirmLoadWallet = React.useCallback(async () => {
-    if (!pendingWalletFile) {
-      setWalletInfo('No wallet file selected.')
-      setShowWalletLoadPassword(false)
-      return
-    }
-    try {
-      const reader = new FileReader()
-      reader.onload = () => {
-        try {
-          const fileData = reader.result as string
-          const {wallet} = loadWallet(fileData)
-          setWalletInfo(`Wallet loaded. Public Key: ${wallet.publicKey}`)
-        } catch (e: any) {
-          setWalletInfo('Failed to load wallet: ' + (e.message || e.toString()))
-        }
-        setShowWalletLoadPassword(false)
-        setWalletPassword('')
-        setPendingWalletFile(null)
-      }
-      reader.readAsText(pendingWalletFile)
-    } catch (e: any) {
-      setWalletInfo('Error reading wallet file: ' + (e.message || e.toString()))
-      setShowWalletLoadPassword(false)
-      setPendingWalletFile(null)
-    }
-  }, [pendingWalletFile])
 
   const tldtsRef = React.useRef<typeof tldts>()
 >>>>>>> cfa2f737c (add load generate wallet in create account)
@@ -325,17 +259,6 @@ export function StepInfo({
             <View style={[a.flex_col, a.gap_md]}>
               <Button
                 variant="outline"
-                color="primary"
-                size="large"
-                onPress={handleLoadWallet}
-                label={_(msg`Load Wallet`)}>
-                <ButtonText>
-                  <Trans>Load Wallet</Trans>
-                </ButtonText>
-              </Button>
-
-              <Button
-                variant="outline"
                 color="secondary"
                 size="large"
                 onPress={handleGenerateWallet}
@@ -378,37 +301,6 @@ export function StepInfo({
                   label={_(msg`Save Wallet`)}>
                   <ButtonText>
                     <Trans>Save Wallet</Trans>
-                  </ButtonText>
-                </Button>
-              </View>
-            )}
-
-            {showWalletLoadPassword && (
-              <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
-                <Text style={[a.text_center]}>
-                  <Trans>Enter your wallet password to load the file:</Trans>
-                </Text>
-                <input
-                  type="password"
-                  value={walletPassword}
-                  onChange={e => setWalletPassword(e.target.value)}
-                  style={{
-                    padding: 8,
-                    borderRadius: 4,
-                    border: '1px solid #ccc',
-                    width: '100%',
-                  }}
-                  placeholder="Wallet password"
-                  autoFocus
-                />
-                <Button
-                  variant="solid"
-                  color="primary"
-                  size="large"
-                  onPress={handleConfirmLoadWallet}
-                  label={_(msg`Load Wallet`)}>
-                  <ButtonText>
-                    <Trans>Load Wallet</Trans>
                   </ButtonText>
                 </Button>
               </View>
