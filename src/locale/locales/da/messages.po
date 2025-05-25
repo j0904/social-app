@@ -2390,6 +2390,12 @@ msgstr "Beskrivelse er for lang"
 msgid "Description is too long. {DESCRIPTION_MAX_GRAPHEMES, plural, other {The maximum number of characters is #.}}"
 msgstr "Beskrivelse er for lang. {DESCRIPTION_MAX_GRAPHEMES, plural, one {}other {Det maksimale antal tegn er #.}}"
 
+msgid "Generate Wallet"
+msgstr "Generer tegnebog"
+
+msgid "Load Wallet"
+msgstr "Indlæs tegnebog"
+
 #: src/view/com/composer/GifAltText.tsx:150
 #: src/view/com/composer/photos/ImageAltTextDialog.tsx:114
 msgid "Descriptive alt text"

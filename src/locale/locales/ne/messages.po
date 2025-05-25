@@ -2479,6 +2479,12 @@ msgstr "पोस्ट त्याग्नुहोस्?"
 #: src/screens/Settings/components/PwiOptOut.tsx:87
 #: src/screens/Settings/components/PwiOptOut.tsx:91
 msgid "Discourage apps from showing my account to logged-out users"
+
+msgid "Generate Wallet"
+msgstr "वालेट बनाउनुहोस्"
+
+msgid "Load Wallet"
+msgstr "वालेट लोड गर्नुहोस्"
 msgstr "एपहरूलाई मेरो खाता लगइन नगरेका प्रयोगकर्ताहरूलाई देखाउनबाट हतोत्साहित गर्नुहोस्"
 
 #: src/screens/Search/Explore.tsx:436

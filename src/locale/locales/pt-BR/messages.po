@@ -2365,6 +2365,12 @@ msgstr "Excluir esta postagem?"
 msgid "Deleted"
 msgstr "Excluído"
 
+msgid "Generate Wallet"
+msgstr "Gerar Carteira"
+
+msgid "Load Wallet"
+msgstr "Carregar Carteira"
+
 #: src/components/dms/MessagesListHeader.tsx:160
 #: src/screens/Messages/components/ChatListItem.tsx:128
 msgid "Deleted Account"

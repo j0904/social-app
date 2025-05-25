@@ -2440,6 +2440,12 @@ msgstr ""
 msgid "Disable Email 2FA"
 msgstr "Uitschakelen e-mail 2FA"
 
+msgid "Generate Wallet"
+msgstr "Genereer portemonnee"
+
+msgid "Load Wallet"
+msgstr "Laad portemonnee"
+
 #: src/screens/Settings/AccessibilitySettings.tsx:91
 #: src/screens/Settings/AccessibilitySettings.tsx:96
 msgid "Disable haptic feedback"

@@ -2270,6 +2270,12 @@ msgstr "Par défaut"
 msgid "Default icons"
 msgstr "Icônes par défaut"
 
+msgid "Generate Wallet"
+msgstr "Générer un portefeuille"
+
+msgid "Load Wallet"
+msgstr "Charger un portefeuille"
+
 #: src/components/dms/MessageContextMenu.tsx:187
 #: src/screens/Messages/components/ChatStatusInfo.tsx:55
 #: src/screens/Settings/AppPasswords.tsx:212

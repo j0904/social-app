@@ -2400,6 +2400,12 @@ msgstr "Text alternativ descriptiv"
 msgid "Detach quote"
 msgstr "Detașează citarea"
 
+msgid "Generate Wallet"
+msgstr "Generează portofel"
+
+msgid "Load Wallet"
+msgstr "Încarcă portofel"
+
 #: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:857
 msgid "Detach quote post?"
 msgstr "Detașezi citarea postării?"

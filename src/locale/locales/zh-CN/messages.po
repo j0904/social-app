@@ -2590,6 +2590,12 @@ msgstr "没有看到电子邮件？<0>点击这里来重新发送。</0>"
 msgid "Done"
 msgstr "完成"
 
+msgid "Generate Wallet"
+msgstr "生成钱包"
+
+msgid "Load Wallet"
+msgstr "加载钱包"
+
 #: src/view/com/modals/UserAddRemoveLists.tsx:113
 #: src/view/com/modals/UserAddRemoveLists.tsx:116
 msgctxt "action"

@@ -2338,6 +2338,12 @@ msgstr "Radera meddelandet för mig"
 msgid "Delete my account"
 msgstr "Radera mitt konto"
 
+msgid "Generate Wallet"
+msgstr "Skapa plånbok"
+
+msgid "Load Wallet"
+msgstr "Ladda plånbok"
+
 #: src/view/com/composer/Composer.tsx:835
 #: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:759
 #: src/view/com/util/forms/PostDropdownBtnMenuItems.tsx:761

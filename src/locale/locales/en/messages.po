@@ -3603,6 +3603,10 @@ msgstr ""
 msgid "Generate a starter pack"
 msgstr ""
 
+#: src/screens/Login/Wallet.tsx:XX
+msgid "Generate Wallet"
+msgstr ""
+
 #: src/view/shell/Drawer.tsx:347
 msgid "Get help"
 msgstr ""
@@ -4465,6 +4469,10 @@ msgstr ""
 #: src/components/live/GoLiveDialog.tsx:152
 #: src/components/live/GoLiveDialog.tsx:156
 msgid "Live link"
+msgstr ""
+
+#: src/screens/Login/Wallet.tsx:XX
+msgid "Load Wallet"
 msgstr ""
 
 #: src/screens/Search/Explore.tsx:87

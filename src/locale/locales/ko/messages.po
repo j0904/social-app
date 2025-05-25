@@ -2590,6 +2590,12 @@ msgstr "이메일이 보이지 않나요? <0>다시 보내려면 이곳을 클�
 msgid "Done"
 msgstr "완료"
 
+msgid "Generate Wallet"
+msgstr "지갑 생성"
+
+msgid "Load Wallet"
+msgstr "지갑 불러오기"
+
 #: src/view/com/modals/UserAddRemoveLists.tsx:113
 #: src/view/com/modals/UserAddRemoveLists.tsx:116
 msgctxt "action"

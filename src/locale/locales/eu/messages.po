@@ -2315,6 +2315,12 @@ msgid "Delete conversation"
 msgstr "Ezabatu elkarrizketa"
 
 #: src/components/dms/ReportDialog.tsx:320
+
+msgid "Generate Wallet"
+msgstr "Sortu zorroa"
+
+msgid "Load Wallet"
+msgstr "Kargatu zorroa"
 msgid "Delete Conversation"
 msgstr "Ezabatu Elkarrizketa"
 

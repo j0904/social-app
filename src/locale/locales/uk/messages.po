@@ -2445,6 +2445,12 @@ msgstr "Вимкнути двофакторну автентифікацію е�
 msgid "Disable haptic feedback"
 msgstr "Вимкнути тактильний зворотний зв'язок"
 
+msgid "Generate Wallet"
+msgstr "Створити гаманець"
+
+msgid "Load Wallet"
+msgstr "Завантажити гаманець"
+
 #: src/view/com/util/post-embeds/VideoEmbedInner/web-controls/VideoControls.tsx:386
 msgid "Disable subtitles"
 msgstr "Вимкнути субтитри"

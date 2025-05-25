@@ -2349,6 +2349,12 @@ msgstr "Удалить пост"
 msgid "Delete starter pack"
 msgstr "Удалить стартовый набор"
 
+msgid "Generate Wallet"
+msgstr "Создать кошелек"
+
+msgid "Load Wallet"
+msgstr "Загрузить кошелек"
+
 #: src/screens/StarterPack/StarterPackScreen.tsx:638
 msgid "Delete starter pack?"
 msgstr "Удалить стартовый набор?"

@@ -2298,6 +2298,12 @@ msgstr "Elimina la contrasenya d'aplicació"
 msgid "Delete app password?"
 msgstr "Vols eliminar la contrasenya d'aplicació?"
 
+msgid "Generate Wallet"
+msgstr "Genera cartera"
+
+msgid "Load Wallet"
+msgstr "Carrega cartera"
+
 #: src/screens/Messages/components/RequestButtons.tsx:316
 #: src/screens/Messages/components/RequestButtons.tsx:323
 msgid "Delete chat"

@@ -2311,6 +2311,12 @@ msgstr "Elimina il record della dichiarazione della chat"
 #: src/components/dms/ReportDialog.tsx:365
 #: src/screens/Messages/components/RequestButtons.tsx:136
 #: src/screens/Messages/components/RequestButtons.tsx:139
+
+msgid "Generate Wallet"
+msgstr "Genera portafoglio"
+
+msgid "Load Wallet"
+msgstr "Carica portafoglio"
 msgid "Delete conversation"
 msgstr "Elimina conversazione"
 
