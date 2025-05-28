@@ -6,11 +6,7 @@ import * as Sharing from 'expo-sharing'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
-import {
-  createCredentialEntryForWallet,
-  createWalletFromMnemonic,
-  generateWalletMnemonic,
-} from '#/lib/hdwallet'
+import {createWallet, generateWalletMnemonic} from '#/lib/hdwallet'
 import {isNative} from '#/platform/detection'
 import {useLoggedOutViewControls} from '#/state/shell/logged-out'
 import {useCloseAllActiveElements} from '#/state/util'
@@ -166,11 +162,7 @@ function SigninDialogInner({}: {control: Dialog.DialogOuterProps['control']}) {
         return
       }
 
-      const wallet = createWalletFromMnemonic(mnemonic)
-      const entry = createCredentialEntryForWallet(
-        wallet,
-        'https://example.com',
-      )
+      const {wallet, credentials: entry} = createWallet(mnemonic)
       setWalletInfo(
         `Loaded wallet\nPublic Key: ${wallet.publicKey}\nUser: ${entry.user}\nPassword: ${entry.password}`,
       )
