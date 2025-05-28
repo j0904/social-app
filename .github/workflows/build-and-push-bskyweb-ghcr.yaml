@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - wallet
+  workflow_dispatch:
 env:
   REGISTRY: ghcr.io
   USERNAME: ${{ github.actor }}
