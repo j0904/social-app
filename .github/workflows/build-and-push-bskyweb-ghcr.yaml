@@ -58,3 +58,5 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_RELEASE=${{ github.sha }}
+            SENTRY_DIST=${{ github.run_number }}
