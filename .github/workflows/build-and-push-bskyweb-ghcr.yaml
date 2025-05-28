@@ -3,7 +3,7 @@ on:
   push:
     branches:
       - main
-      - jake/bskyweb-additions
+      - wallet
 env:
   REGISTRY: ghcr.io
   USERNAME: ${{ github.actor }}
