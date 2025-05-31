@@ -50,7 +50,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push:true
+          push: true
 #          push: ${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
