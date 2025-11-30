@@ -4,7 +4,7 @@ import {
   loadWallet,
   saveHDWalletToFile,
   type WalletFile,
-} from '../../src/lib/hdwallet'
+} from '../../src/lib/wallet'
 
 describe('HDWallet', () => {
   let testMnemonic: string
