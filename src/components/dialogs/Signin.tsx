@@ -6,7 +6,7 @@ import * as Sharing from 'expo-sharing'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
-import {createWallet, generateWalletMnemonic} from '#/lib/hdwallet'
+import {createWallet, generateWalletMnemonic} from '#/lib/wallet'
 import {isNative} from '#/platform/detection'
 import {useLoggedOutViewControls} from '#/state/shell/logged-out'
 import {useCloseAllActiveElements} from '#/state/util'

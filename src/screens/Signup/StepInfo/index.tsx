@@ -5,12 +5,12 @@ import {useLingui} from '@lingui/react'
 import * as EmailValidator from 'email-validator'
 import type tldts from 'tldts'
 
+import {isEmailMaybeInvalid} from '#/lib/strings/email'
 import {
   createWallet,
   generateWalletMnemonic,
   saveHDWalletToFile,
-} from '#/lib/hdwallet'
-import {isEmailMaybeInvalid} from '#/lib/strings/email'
+} from '#/lib/wallet'
 import {logger} from '#/logger'
 import {is13, is18, useSignupContext} from '#/screens/Signup/state'
 import {Policies} from '#/screens/Signup/StepInfo/Policies'
@@ -25,11 +25,7 @@ import {Envelope_Stroke2_Corner0_Rounded as Envelope} from '#/components/icons/E
 import {Lock_Stroke2_Corner0_Rounded as Lock} from '#/components/icons/Lock'
 import {Ticket_Stroke2_Corner0_Rounded as Ticket} from '#/components/icons/Ticket'
 import {Loader} from '#/components/Loader'
-<<<<<<< HEAD
-import {usePreemptivelyCompleteActivePolicyUpdate} from '#/components/PolicyUpdateOverlay/usePreemptivelyCompleteActivePolicyUpdate'
-=======
 import {Text} from '#/components/Typography'
->>>>>>> cfa2f737c (add load generate wallet in create account)
 import {BackNextButtons} from '../BackNextButtons'
 
 function sanitizeDate(date: Date): Date {
@@ -67,9 +63,6 @@ export function StepInfo({
 
   const [hasWarnedEmail, setHasWarnedEmail] = React.useState<boolean>(false)
 
-<<<<<<< HEAD
-  const tldtsRef = React.useRef<typeof tldts>(undefined)
-=======
   // Wallet state for demo
   const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
   const [showWalletPassword, setShowWalletPassword] = React.useState(false)
@@ -157,7 +150,6 @@ export function StepInfo({
   }, [generatedMnemonic, generatedFilename, walletPassword, dispatch])
 
   const tldtsRef = React.useRef<typeof tldts>()
->>>>>>> cfa2f737c (add load generate wallet in create account)
   React.useEffect(() => {
     // @ts-expect-error - valid path
     import('tldts/dist/index.cjs.min.js').then(tldts => {
