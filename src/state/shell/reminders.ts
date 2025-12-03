@@ -12,7 +12,7 @@ export function shouldRequestEmailConfirmation(account: SessionAccount) {
   // wait for onboarding to complete
   if (isOnboardingActive()) return false
 
-  const snoozedAt = persisted.get('reminders').lastEmailConfirm
+  const snoozedAt = persisted.read().reminders?.lastEmailConfirm
   const today = new Date()
 
   logger.debug('Checking email confirmation reminder', {
@@ -38,8 +38,11 @@ export function snoozeEmailConfirmationPrompt() {
   logger.debug('Snoozing email confirmation reminder', {
     snoozedAt: lastEmailConfirm,
   })
-  persisted.write('reminders', {
-    ...persisted.get('reminders'),
-    lastEmailConfirm,
+  persisted.write({
+    ...persisted.read(),
+    reminders: {
+      ...(persisted.read().reminders || {}),
+      lastEmailConfirm,
+    },
   })
 }

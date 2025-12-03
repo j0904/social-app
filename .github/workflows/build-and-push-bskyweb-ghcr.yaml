@@ -3,7 +3,8 @@ on:
   push:
     branches:
       - main
-      - jake/bskyweb-additions
+      - wallet
+  workflow_dispatch:
 env:
   REGISTRY: ghcr.io
   USERNAME: ${{ github.actor }}
@@ -14,7 +15,7 @@ env:
 
 jobs:
   bskyweb-container-ghcr:
-    if: github.repository == 'bluesky-social/social-app'
+    if: github.repository == 'j0904/social-app'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,9 +50,14 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
+#          push: ${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_RELEASE=${{ github.sha }}
+            SENTRY_DIST=${{ github.run_number }}

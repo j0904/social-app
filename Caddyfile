@@ -1,0 +1,11 @@
+:443 {
+    reverse_proxy social-app:8080
+}
+
+pds.bigt.ai {
+    reverse_proxy bsky-pds:8080
+}
+
+appview.bigt.ai {
+    reverse_proxy bsky-appview:8080
+}

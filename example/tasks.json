@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "yarn web",
+      "type": "shell",
+      "command": "yarn",
+      "args": ["web"],
+      "problemMatcher": [
+        "$eslint-stylish"
+      ],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+      {
+      "label": "compile-ts-to-example",
+      "type": "shell",
+      "command": "tsc ${file} --outDir example  --sourceMap true",
+      "problemMatcher": ["$tsc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

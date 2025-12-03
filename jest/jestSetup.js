@@ -78,6 +78,7 @@ jest.mock('sentry-expo', () => ({
 
 jest.mock('crypto', () => ({}))
 
+
 jest.mock('expo-application', () => ({
   nativeApplicationVersion: '1.0.0',
   nativeBuildVersion: '1',

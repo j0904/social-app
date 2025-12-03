@@ -22,12 +22,20 @@ const UPDATE_EVENT = 'BSKY_UPDATE'
 let _state: Schema = defaults
 const _emitter = new EventEmitter()
 
-export async function init() {
+// Module-level storage variable
+let _storage: Storage = globalThis.localStorage
+
+// Accept a storage parameter for testability
+export async function init(storage = globalThis.localStorage) {
+  _storage = storage
   broadcast.onmessage = onBroadcastMessage
   window.onstorage = onStorage
   const stored = readFromStorage()
   if (stored) {
     _state = stored
+  } else {
+    await writeToStorage(defaults)
+    _state = defaults
   }
 }
 init satisfies PersistedApi['init']
@@ -84,7 +92,7 @@ onUpdate satisfies PersistedApi['onUpdate']
 
 export async function clearStorage() {
   try {
-    localStorage.removeItem(BSKY_STORAGE)
+    globalThis.localStorage.removeItem(BSKY_STORAGE)
   } catch (e: any) {
     // Expected on the web in private mode.
   }
@@ -128,11 +136,11 @@ async function onBroadcastMessage({data}: MessageEvent) {
   }
 }
 
-function writeToStorage(value: Schema) {
+async function writeToStorage(value: Schema) {
   const rawData = tryStringify(value)
   if (rawData) {
     try {
-      localStorage.setItem(BSKY_STORAGE, rawData)
+      _storage.setItem(BSKY_STORAGE, rawData)
     } catch (e) {
       // Expected on the web in private mode.
     }
@@ -144,10 +152,12 @@ let lastResult: Schema | undefined
 function readFromStorage(): Schema | undefined {
   let rawData: string | null = null
   try {
-    rawData = localStorage.getItem(BSKY_STORAGE)
+    rawData = _storage.getItem(BSKY_STORAGE)
   } catch (e) {
     // Expected on the web in private mode.
   }
+  // DEBUG: log what is read from storage
+  // console.log('readFromStorage:', {rawData})
   if (rawData) {
     if (rawData === lastRawData) {
       return lastResult
@@ -160,4 +170,5 @@ function readFromStorage(): Schema | undefined {
       }
     }
   }
+  return undefined
 }
