@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Keyboard,
   LayoutAnimation,
+  Platform,
   type TextInput,
   View,
 } from 'react-native'
@@ -68,6 +69,8 @@ export const LoginForm = ({
     useState<boolean>(false)
   const identifierValueRef = useRef<string>(initialHandle || '')
   const passwordValueRef = useRef<string>('')
+  const [identifier, setIdentifier] = useState<string>(initialHandle || '')
+  const [password, setPassword] = useState<string>('')
   const [authFactorToken, setAuthFactorToken] = useState('')
   const identifierRef = useRef<TextInput>(null)
   const passwordRef = useRef<TextInput>(null)
@@ -159,10 +162,9 @@ export const LoginForm = ({
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setError('')
 
-    const identifier = identifierValueRef.current.toLowerCase().trim()
-    const password = passwordValueRef.current
+    const processedIdentifier = identifier.toLowerCase().trim()
 
-    if (!identifier) {
+    if (!processedIdentifier) {
       setError(_(msg`Please enter your username`))
       return
     }
@@ -172,14 +174,18 @@ export const LoginForm = ({
       return
     }
 
+    // Update refs to match current state values
+    identifierValueRef.current = processedIdentifier
+    passwordValueRef.current = password
+
     setIsProcessing(true)
 
     try {
       // try to guess the handle if the user just gave their own username
-      let fullIdent = identifier
+      let fullIdent = processedIdentifier
       if (
-        !identifier.includes('@') && // not an email
-        !identifier.includes('.') && // not a domain
+        !processedIdentifier.includes('@') && // not an email
+        !processedIdentifier.includes('.') && // not a domain
         serviceDescription &&
         serviceDescription.availableUserDomains.length > 0
       ) {
@@ -191,7 +197,7 @@ export const LoginForm = ({
         }
         if (!matched) {
           fullIdent = createFullHandle(
-            identifier,
+            processedIdentifier,
             serviceDescription.availableUserDomains[0],
           )
         }
@@ -234,6 +240,18 @@ export const LoginForm = ({
             error: errMsg,
           })
           setError(_(msg`Incorrect username or password`))
+          // Clear the input fields after authentication error
+          setIdentifier('')
+          setPassword('')
+          passwordRef.current?.clear()
+          passwordValueRef.current = ''
+          identifierValueRef.current = ''
+          // Wait for the clear animations to complete before showing the error
+          // to keep the error message from flashing
+          setTimeout(
+            () => setError(_(msg`Incorrect username or password`)),
+            200,
+          )
         } else if (isNetworkError(e)) {
           logger.warn('Failed to login due to network error', {error: errMsg})
           setError(
