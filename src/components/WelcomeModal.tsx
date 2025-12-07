@@ -12,6 +12,9 @@ import {atoms as a, flatten, useBreakpoints, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
 import {Text} from '#/components/Typography'
+import {useNavigation} from '@react-navigation/native'
+import {type NativeStackNavigationProp} from '@react-navigation/native-stack'
+import {type CommonNavigatorParams} from '#/lib/routes/types'
 
 const welcomeModalBg = require('../../assets/images/welcome-modal-bg.jpg')
 
@@ -25,6 +28,7 @@ interface WelcomeModalProps {
 
 export function WelcomeModal({control}: WelcomeModalProps) {
   const {_} = useLingui()
+  const navigation = useNavigation<NativeStackNavigationProp<CommonNavigatorParams>>()
   const {requestSwitchToAccount} = useLoggedOutViewControls()
   const {gtMobile} = useBreakpoints()
   const [isExiting, setIsExiting] = useState(false)
@@ -48,6 +52,12 @@ export function WelcomeModal({control}: WelcomeModalProps) {
     logger.metric('welcomeModal:signupClicked', {})
     control.close()
     requestSwitchToAccount({requestedAccount: 'new'})
+  }
+
+  const onPressWallet = () => {
+    logger.metric('welcomeModal:exploreClicked', {})
+    control.close()
+    navigation.navigate('WalletHome')
   }
 
   const onPressExplore = () => {
@@ -151,8 +161,8 @@ export function WelcomeModal({control}: WelcomeModalProps) {
               <View style={[a.gap_md, a.align_center]}>
                 <View>
                   <Button
-                    onPress={onPressCreateAccount}
-                    label={_(msg`Create account`)}
+                    onPress={onPressWallet}
+                    label={_(msg`Wallet`)}
                     size="large"
                     color="primary"
                     style={{
@@ -160,7 +170,7 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                       backgroundColor: '#006AFF',
                     }}>
                     <ButtonText>
-                      <Trans>Create account</Trans>
+                      <Trans>Wallet</Trans>
                     </ButtonText>
                   </Button>
                   <Button

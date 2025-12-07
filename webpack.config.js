@@ -60,5 +60,28 @@ module.exports = async function (env, argv) {
       }),
     )
   }
+
+  // Add Node.js polyfills for packages that require them
+  config.resolve.fallback = {
+    ...(config.resolve.fallback || {}),
+    crypto: require.resolve('crypto-browserify'),
+    stream: require.resolve('stream-browserify'),
+    buffer: require.resolve('buffer'),
+    http: require.resolve('stream-http'),
+    https: require.resolve('https-browserify'),
+    os: require.resolve('os-browserify'),
+    url: require.resolve('url'),
+    zlib: require.resolve('browserify-zlib'),
+    vm: require.resolve('vm-browserify'),
+  };
+
+  // Add plugin to provide Buffer globally
+  if (!config.plugins) config.plugins = [];
+  config.plugins.push(
+    new (require('webpack')).ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+    }),
+  );
+
   return config
 }

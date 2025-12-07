@@ -3,6 +3,9 @@ import {View} from 'react-native'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {msg} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
+import {useNavigation} from '@react-navigation/native'
+import {type NativeStackNavigationProp} from '@react-navigation/native-stack'
+import {type CommonNavigatorParams} from '#/lib/routes/types'
 
 import {PressableScale} from '#/lib/custom-animations/PressableScale'
 import {logEvent} from '#/lib/statsig/statsig'
@@ -30,13 +33,16 @@ export {ScreenState as LoggedOutScreenState}
 
 export function LoggedOut({onDismiss}: {onDismiss?: () => void}) {
   const {_} = useLingui()
+  const navigation = useNavigation<NativeStackNavigationProp<CommonNavigatorParams>>()
   const t = useTheme()
   const insets = useSafeAreaInsets()
   const setMinimalShellMode = useSetMinimalShellMode()
   const {requestedAccountSwitchTo} = useLoggedOutView()
   const [screenState, setScreenState] = React.useState<ScreenState>(() => {
     if (requestedAccountSwitchTo === 'new') {
-      return ScreenState.S_CreateAccount
+      // Navigate to WalletHome instead of showing create account state
+      setTimeout(() => navigation.navigate('WalletHome'), 0)
+      return ScreenState.S_LoginOrCreateAccount
     } else if (requestedAccountSwitchTo === 'starterpack') {
       return ScreenState.S_StarterPack
     } else if (requestedAccountSwitchTo != null) {
@@ -95,10 +101,6 @@ export function LoggedOut({onDismiss}: {onDismiss?: () => void}) {
             onPressSignin={() => {
               setScreenState(ScreenState.S_Login)
               logEvent('splash:signInPressed', {})
-            }}
-            onPressCreateAccount={() => {
-              setScreenState(ScreenState.S_CreateAccount)
-              logEvent('splash:createAccountPressed', {})
             }}
           />
         ) : undefined}

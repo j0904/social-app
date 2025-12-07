@@ -341,13 +341,13 @@ export function BottomBar({navigation}: BottomTabBarProps) {
 
               <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
                 <Button
-                  onPress={showCreateAccount}
-                  label={_(msg`Create account`)}
+                  onPress={() => navigation.navigate('WalletHome')}
+                  label={_(msg`Wallet`)}
                   size="small"
                   variant="solid"
                   color="primary">
                   <ButtonText>
-                    <Trans>Create account</Trans>
+                    <Trans>Wallet</Trans>
                   </ButtonText>
                 </Button>
                 <Button

@@ -1,6 +1,31 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
-const {getSentryExpoConfig} = require('@sentry/react-native/metro')
+const { getSentryExpoConfig } = require('@sentry/react-native/metro')
+const {getDefaultConfig} = require('@expo/metro-config')
+const path = require('path')
+
 const cfg = getSentryExpoConfig(__dirname)
+
+// Add node module resolution for packages that require Node.js built-ins
+cfg.resolver = {
+  ...cfg.resolver,
+  nodeModulesPaths: [
+    path.resolve(__dirname, './node_modules'),
+    path.resolve(__dirname, '../node_modules'),
+  ],
+  extraNodeModules: {
+    crypto: path.resolve(__dirname, 'src/platform/crypto.js'), // Use the project's crypto polyfill
+    stream: require.resolve('stream-browserify'),
+    buffer: require.resolve('buffer'),
+    http: require.resolve('stream-http'),
+    https: require.resolve('https-browserify'),
+    os: require.resolve('os-browserify'),
+    url: require.resolve('url'),
+    zlib: require.resolve('browserify-zlib'),
+    vm: require.resolve('vm-browserify'),
+  },
+  resolverMainFields: ['sbmodern', 'browser', 'main'],
+  assetExts: [...cfg.resolver.assetExts, 'bin'],
+}
 
 cfg.resolver.sourceExts = process.env.RN_SRC_EXT
   ? process.env.RN_SRC_EXT.split(',').concat(cfg.resolver.sourceExts)

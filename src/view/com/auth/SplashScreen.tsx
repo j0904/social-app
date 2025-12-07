@@ -3,6 +3,8 @@ import Animated, {FadeIn, FadeOut} from 'react-native-reanimated'
 import {useSafeAreaInsets} from 'react-native-safe-area-context'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
+import {useNavigation} from '@react-navigation/native'
+import {type NativeStackNavigationProp} from '@react-navigation/native-stack'
 
 import {useHaptics} from '#/lib/haptics'
 import {ErrorBoundary} from '#/view/com/util/ErrorBoundary'
@@ -13,19 +15,23 @@ import {atoms as a, useTheme} from '#/alf'
 import {AppLanguageDropdown} from '#/components/AppLanguageDropdown'
 import {Button, ButtonText} from '#/components/Button'
 import {Text} from '#/components/Typography'
+import {type CommonNavigatorParams} from '#/lib/routes/types'
 
 export const SplashScreen = ({
   onPressSignin,
-  onPressCreateAccount,
 }: {
   onPressSignin: () => void
-  onPressCreateAccount: () => void
 }) => {
   const t = useTheme()
   const {_} = useLingui()
+  const navigation = useNavigation<NativeStackNavigationProp<CommonNavigatorParams>>()
 
   const playHaptic = useHaptics()
   const insets = useSafeAreaInsets()
+
+  const onPressWallet = () => {
+    navigation.navigate('WalletHome')
+  }
 
   return (
     <CenteredView style={[a.h_full, a.flex_1]}>
@@ -58,18 +64,18 @@ export const SplashScreen = ({
             <Button
               testID="createAccountButton"
               onPress={() => {
-                onPressCreateAccount()
+                onPressWallet()
                 playHaptic('Light')
               }}
-              label={_(msg`Create new account`)}
+              label={_(msg`Wallet`)}
               accessibilityHint={_(
-                msg`Opens flow to create a new Bluesky account`,
+                msg`Opens wallet functionality`,
               )}
               size="large"
               variant="solid"
               color="primary">
               <ButtonText>
-                <Trans>Create account</Trans>
+                <Trans>Wallet</Trans>
               </ButtonText>
             </Button>
             <Button

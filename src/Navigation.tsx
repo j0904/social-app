@@ -609,6 +609,16 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
           requireAuth: true,
         }}
       />
+      <Stack.Screen
+        name="Wallet"
+        getComponent={() => require('#/screens/wallet/Wallet').default}
+        options={{title: title(msg`Wallet`)}}
+      />
+      <Stack.Screen
+        name="WalletHome"
+        getComponent={() => require('#/screens/wallet/WalletHome').WalletHomeScreen}
+        options={{title: title(msg`Wallet`)}}
+      />
     </>
   )
 }
