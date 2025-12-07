@@ -4,60 +4,15 @@ import * as FileSystem from 'expo-file-system'
 import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 import {format} from 'date-fns'
 
-// Initialize BigTangle wallet manager asynchronously
+// Initialize BigTangle wallet manager
 const initializeBigTangle = async () => {
   try {
-    // Try to import the real BigTangle library
+    // Import the real BigTangle library
     const {BigTangle} = await import('@bigtangle/bigtangle-ts')
     return new BigTangle()
   } catch (e) {
-    console.warn(
-      'BigTangle library not available, using fallback implementation',
-    )
-    // Define a fallback implementation with the same interface
-    class BigTangleMock {
-      constructor() {}
-
-      async generateWallet() {
-        // Generate a mock wallet following BigTangle interface
-        const privateKey = this.generateRandomString(64)
-        const publicKey = this.generateRandomString(64)
-        const address = '0x' + this.generateRandomString(40)
-        const ethAddress = '0x' + this.generateRandomString(40)
-
-        return {
-          address,
-          publicKey,
-          privateKey,
-          ethAddress,
-        }
-      }
-
-      async generateKeyPair() {
-        // Generate a mock key pair following BigTangle interface
-        const privateKey = this.generateRandomString(64)
-        const publicKey = this.generateRandomString(64)
-        const address = '0x' + this.generateRandomString(40)
-
-        return {
-          address,
-          publicKey,
-          privateKey,
-        }
-      }
-
-      private generateRandomString(length: number): string {
-        const characters = 'abcdef0123456789'
-        let result = ''
-        for (let i = 0; i < length; i++) {
-          result += characters.charAt(
-            Math.floor(Math.random() * characters.length),
-          )
-        }
-        return result
-      }
-    }
-    return new BigTangleMock()
+    console.error('Failed to load BigTangle library:', e)
+    throw new Error('BigTangle library is not available')
   }
 }
 
@@ -109,9 +64,18 @@ const WalletScreen = (
   // Initialize BigTangle wallet manager when needed
   const getBigTangleInstance = async () => {
     if (!bigtangleInstance) {
-      const newInstance = await initializeBigTangle()
-      setBigTangleInstance(newInstance)
-      return newInstance
+      try {
+        const newInstance = await initializeBigTangle()
+        setBigTangleInstance(newInstance)
+        return newInstance
+      } catch (error) {
+        console.error('Error initializing BigTangle:', error)
+        Alert.alert(
+          'Error',
+          'BigTangle library failed to initialize: ' + (error as Error).message,
+        )
+        throw error
+      }
     }
     return bigtangleInstance
   }
@@ -787,15 +751,6 @@ const WalletScreen = (
     })
   }
 
-  // Function to import a new wallet file (not implemented without proper library)
-  const importWalletFile = async () => {
-    Alert.alert(
-      'Import Wallet',
-      "Wallet import functionality requires proper file access permissions. On a mobile device you can copy wallet files to the app's documents directory manually.",
-      [{text: 'OK', style: 'cancel'}],
-    )
-  }
-
   // Show private key in a dialog
   const showPrivateKeyHandler = () => {
     setPrivateKey('5KJvsngHeMpm884wtkJNzQGaCErckhHJBGFsvd3VyK5qMZXj3hS')
@@ -832,12 +787,6 @@ const WalletScreen = (
                 onPress={loadWalletFiles}
                 label="Load Wallet">
                 <SettingsList.ItemText>Load Wallet</SettingsList.ItemText>
-                <SettingsList.Chevron />
-              </SettingsList.PressableItem>
-              <SettingsList.PressableItem
-                onPress={importWalletFile}
-                label="Import Wallet">
-                <SettingsList.ItemText>Import Wallet</SettingsList.ItemText>
                 <SettingsList.Chevron />
               </SettingsList.PressableItem>
               <SettingsList.Divider />
