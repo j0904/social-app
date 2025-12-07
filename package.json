@@ -73,12 +73,8 @@
   },
   "dependencies": {
     "@atproto/api": "^0.18.4",
-<<<<<<< HEAD
     "@atproto/common-web": "^0.4.5",
     "@bigtangle/bigtangle-ts": "file:../bigtangle-ts",
-=======
-    "bigtangle-ts": "^1.0.0",
->>>>>>> 419a79817 (Fix missing module and TextEncoder/TextDecoder errors)
     "@bitdrift/react-native": "^0.6.8",
     "@braintree/sanitize-url": "^6.0.2",
     "@bsky.app/alf": "^0.1.5",
@@ -136,7 +132,6 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "bcp-47": "^2.1.0",
     "bcp-47-match": "^2.0.3",
-    "bigtangle-ts": "^1.0.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
