@@ -1,67 +1,56 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
-const {getSentryExpoConfig} = require('@sentry/react-native/metro')
-const cfg = getSentryExpoConfig(__dirname)
+// Learn more: https://docs.expo.dev/guides/monorepos/#create-a-metro-config
+const {getDefaultConfig} = require('@expo/metro-config')
 
-cfg.resolver.sourceExts = process.env.RN_SRC_EXT
-  ? process.env.RN_SRC_EXT.split(',').concat(cfg.resolver.sourceExts)
-  : cfg.resolver.sourceExts
+const config = getDefaultConfig(__dirname)
 
-if (cfg.resolver.resolveRequest) {
-  throw Error('Update this override because it is conflicting now.')
-}
-
-if (process.env.BSKY_PROFILE) {
-  cfg.cacheVersion += ':PROFILE'
-}
-
-cfg.resolver.assetExts = [...cfg.resolver.assetExts, 'woff2']
-
-// Enabled by default in RN 0.79+, but this breaks Lingui + others
-cfg.resolver.unstable_enablePackageExports = false
-
-cfg.resolver.resolveRequest = (context, moduleName, platform) => {
-  // HACK: manually resolve a few packages that use `exports` in `package.json`.
-  // A proper solution is to enable `unstable_enablePackageExports` but this needs careful testing.
-  if (moduleName.startsWith('multiformats/hashes/hasher')) {
-    return context.resolveRequest(
-      context,
-      'multiformats/cjs/src/hashes/hasher',
-      platform,
-    )
-  }
-  if (moduleName.startsWith('multiformats/cid')) {
-    return context.resolveRequest(context, 'multiformats/cjs/src/cid', platform)
-  }
-  if (moduleName === '@ipld/dag-cbor') {
-    return context.resolveRequest(context, '@ipld/dag-cbor/src', platform)
-  }
-  if (process.env.BSKY_PROFILE) {
-    if (moduleName.endsWith('ReactNativeRenderer-prod')) {
-      return context.resolveRequest(
-        context,
-        moduleName.replace('-prod', '-profiling'),
-        platform,
-      )
-    }
-  }
-  return context.resolveRequest(context, moduleName, platform)
-}
-
-cfg.transformer.getTransformOptions = async () => ({
-  transform: {
-    experimentalImportSupport: true,
-    inlineRequires: true,
-    nonInlinedRequires: [
-      // We can remove this option and rely on the default after
-      // https://github.com/facebook/metro/pull/1390 is released.
-      'React',
-      'react',
-      'react-compiler-runtime',
-      'react/jsx-dev-runtime',
-      'react/jsx-runtime',
-      'react-native',
-    ],
+// Add resolver to handle Node.js modules
+config.resolver = {
+  ...config.resolver,
+  extraNodeModules: {
+    ...config.resolver.extraNodeModules,
+    zlib: require.resolve('browserify-zlib'),
+    buffer: require.resolve('buffer'),
+    stream: require.resolve('stream-browserify'),
+    util: require.resolve('util'),
+    crypto: require.resolve('crypto-browserify'),
+    assert: require.resolve('assert'),
+    http: require.resolve('stream-http'),
+    https: require.resolve('https-browserify'),
+    os: require.resolve('os-browserify/browser'),
+    url: require.resolve('url'),
+    vm: require.resolve('vm-browserify'),
+    events: require.resolve('events'),
+    path: require.resolve('path-browserify'),
+    querystring: require.resolve('querystring-es3'),
+    process: require.resolve('process/browser.js'),
   },
-})
+  resolverMainFields: ['browser', 'main'],
+}
 
-module.exports = cfg
+// Add the polyfill aliases
+config.resolver.assetExts = config.resolver.assetExts.filter(
+  ext => ext !== 'svg',
+)
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg']
+
+// Add the polyfill aliases
+config.resolver.alias = {
+  ...(config.resolver.alias || {}),
+  zlib: require.resolve('browserify-zlib'),
+  buffer: require.resolve('buffer'),
+  stream: require.resolve('stream-browserify'),
+  util: require.resolve('util'),
+  crypto: require.resolve('crypto-browserify'),
+  assert: require.resolve('assert'),
+  http: require.resolve('stream-http'),
+  https: require.resolve('https-browserify'),
+  os: require.resolve('os-browserify/browser'),
+  url: require.resolve('url'),
+  vm: require.resolve('vm-browserify'),
+  events: require.resolve('events'),
+  path: require.resolve('path-browserify'),
+  querystring: require.resolve('querystring-es3'),
+  process: require.resolve('process/browser.js'),
+}
+
+module.exports = config

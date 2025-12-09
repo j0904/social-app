@@ -11,6 +11,7 @@ export function useNavigationTabState() {
       isAtNotifications: currentRoute === 'Notifications',
       isAtMyProfile: currentRoute === 'MyProfile',
       isAtMessages: currentRoute === 'Messages',
+      isAtWalletTab: currentRoute === 'WalletTab',
     }
   })
 }

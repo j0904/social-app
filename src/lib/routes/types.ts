@@ -87,6 +87,8 @@ export type CommonNavigatorParams = {
   StarterPackEdit: {rkey?: string}
   VideoFeed: VideoFeedSourceContext
   Bookmarks: undefined
+  Wallet: undefined
+  WalletHome: undefined
 }
 
 export type BottomTabNavigatorParams = CommonNavigatorParams & {
@@ -95,6 +97,7 @@ export type BottomTabNavigatorParams = CommonNavigatorParams & {
   NotificationsTab: undefined
   MyProfileTab: undefined
   MessagesTab: undefined
+  WalletTab: undefined
 }
 
 export type HomeTabNavigatorParams = CommonNavigatorParams & {
@@ -136,6 +139,7 @@ export type AllNavigatorParams = CommonNavigatorParams & {
   MyProfileTab: undefined
   MessagesTab: undefined
   Messages: {animation?: 'push' | 'pop'}
+  WalletTab: undefined
 }
 
 // NOTE

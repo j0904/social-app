@@ -12,6 +12,7 @@ import {atoms as a, flatten, useBreakpoints, web} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import {TimesLarge_Stroke2_Corner0_Rounded as XIcon} from '#/components/icons/Times'
 import {Text} from '#/components/Typography'
+import {navigate} from '#/Navigation'
 
 const welcomeModalBg = require('../../assets/images/welcome-modal-bg.jpg')
 
@@ -47,7 +48,8 @@ export function WelcomeModal({control}: WelcomeModalProps) {
   const onPressCreateAccount = () => {
     logger.metric('welcomeModal:signupClicked', {})
     control.close()
-    requestSwitchToAccount({requestedAccount: 'new'})
+    // Navigate to WalletHome instead of creating account
+    navigate('WalletHome')
   }
 
   const onPressExplore = () => {
@@ -152,7 +154,7 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                 <View>
                   <Button
                     onPress={onPressCreateAccount}
-                    label={_(msg`Create account`)}
+                    label={_(msg`Wallet`)}
                     size="large"
                     color="primary"
                     style={{
@@ -160,7 +162,7 @@ export function WelcomeModal({control}: WelcomeModalProps) {
                       backgroundColor: '#006AFF',
                     }}>
                     <ButtonText>
-                      <Trans>Create account</Trans>
+                      <Trans>Wallet</Trans>
                     </ButtonText>
                   </Button>
                   <Button

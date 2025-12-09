@@ -11,6 +11,7 @@ import {AppLanguageDropdown} from '#/components/AppLanguageDropdown'
 import {Button, ButtonText} from '#/components/Button'
 import {Link} from '#/components/Link'
 import {Text} from '#/components/Typography'
+import {navigate} from '#/Navigation'
 
 let NavSignupCard = ({}: {}): React.ReactNode => {
   const {_} = useLingui()
@@ -28,6 +29,11 @@ let NavSignupCard = ({}: {}): React.ReactNode => {
     // setShowLoggedOut(true)
   }, [requestSwitchToAccount, closeAllActiveElements])
 
+  const showWallet = React.useCallback(() => {
+    closeAllActiveElements()
+    navigate('WalletHome')
+  }, [closeAllActiveElements])
+
   return (
     <View style={[{maxWidth: 200}]}>
       <Link to="/" label="Bluesky - Home">
@@ -43,13 +49,13 @@ let NavSignupCard = ({}: {}): React.ReactNode => {
 
       <View style={[a.flex_row, a.flex_wrap, a.gap_sm, a.pt_md]}>
         <Button
-          onPress={showCreateAccount}
-          label={_(msg`Create account`)}
+          onPress={showWallet}
+          label={_(msg`Wallet`)}
           size="small"
           variant="solid"
           color="primary">
           <ButtonText>
-            <Trans>Create account</Trans>
+            <Trans>Wallet</Trans>
           </ButtonText>
         </Button>
         <Button

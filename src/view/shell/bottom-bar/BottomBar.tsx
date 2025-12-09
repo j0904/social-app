@@ -40,6 +40,7 @@ import {
   Bell_Filled_Corner0_Rounded as BellFilled,
   Bell_Stroke2_Corner0_Rounded as Bell,
 } from '#/components/icons/Bell'
+import {CC_Stroke2_Corner0_Rounded as WalletIcon} from '#/components/icons/CC'
 import {
   HomeOpen_Filled_Corner0_Rounded as HomeFilled,
   HomeOpen_Stoke2_Corner0_Rounded as Home,
@@ -50,10 +51,17 @@ import {
   Message_Stroke2_Corner0_Rounded as Message,
   Message_Stroke2_Corner0_Rounded_Filled as MessageFilled,
 } from '#/components/icons/Message'
+import {navigate} from '#/Navigation'
 import {useDemoMode} from '#/storage/hooks/demo-mode'
 import {styles} from './BottomBarStyles'
 
-type TabOptions = 'Home' | 'Search' | 'Messages' | 'Notifications' | 'MyProfile'
+type TabOptions =
+  | 'Home'
+  | 'Search'
+  | 'Messages'
+  | 'Notifications'
+  | 'MyProfile'
+  | 'WalletTab'
 
 export function BottomBar({navigation}: BottomTabBarProps) {
   const {hasSession, currentAccount} = useSession()
@@ -61,8 +69,14 @@ export function BottomBar({navigation}: BottomTabBarProps) {
   const {_} = useLingui()
   const safeAreaInsets = useSafeAreaInsets()
   const {footerHeight} = useShellLayout()
-  const {isAtHome, isAtSearch, isAtNotifications, isAtMyProfile, isAtMessages} =
-    useNavigationTabState()
+  const {
+    isAtHome,
+    isAtSearch,
+    isAtNotifications,
+    isAtMyProfile,
+    isAtMessages,
+    isAtWalletTab,
+  } = useNavigationTabState()
   const numUnreadNotifications = useUnreadNotifications()
   const numUnreadMessages = useUnreadMessageCount()
   const footerMinimalShellTransform = useMinimalShellFooterTransform()
@@ -87,6 +101,11 @@ export function BottomBar({navigation}: BottomTabBarProps) {
     requestSwitchToAccount({requestedAccount: 'new'})
     // setShowLoggedOut(true)
   }, [requestSwitchToAccount, closeAllActiveElements])
+
+  const showWallet = useCallback(() => {
+    closeAllActiveElements()
+    navigate('WalletHome')
+  }, [closeAllActiveElements])
 
   const onPressTab = useCallback(
     (tab: TabOptions) => {
@@ -130,6 +149,10 @@ export function BottomBar({navigation}: BottomTabBarProps) {
   }, [onPressTab])
   const onPressMessages = useCallback(() => {
     onPressTab('Messages')
+  }, [onPressTab])
+
+  const onPressWallet = useCallback(() => {
+    onPressTab('WalletTab')
   }, [onPressTab])
 
   const onLongPressProfile = useCallback(() => {
@@ -316,6 +339,26 @@ export function BottomBar({navigation}: BottomTabBarProps) {
               accessibilityLabel={_(msg`Profile`)}
               accessibilityHint=""
             />
+            <Btn
+              testID="bottomBarWalletBtn"
+              icon={
+                isAtWalletTab ? (
+                  <WalletIcon
+                    width={iconWidth}
+                    style={[styles.ctrlIcon, pal.text, styles.walletIcon]}
+                  />
+                ) : (
+                  <WalletIcon
+                    width={iconWidth}
+                    style={[styles.ctrlIcon, pal.text, styles.walletIcon]}
+                  />
+                )
+              }
+              onPress={onPressWallet}
+              accessibilityRole="tab"
+              accessibilityLabel={_(msg`Wallet`)}
+              accessibilityHint=""
+            />
           </>
         ) : (
           <>
@@ -341,13 +384,13 @@ export function BottomBar({navigation}: BottomTabBarProps) {
 
               <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
                 <Button
-                  onPress={showCreateAccount}
-                  label={_(msg`Create account`)}
+                  onPress={showWallet}
+                  label={_(msg`Wallet`)}
                   size="small"
                   variant="solid"
                   color="primary">
                   <ButtonText>
-                    <Trans>Create account</Trans>
+                    <Trans>Wallet</Trans>
                   </ButtonText>
                 </Button>
                 <Button

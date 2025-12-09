@@ -127,6 +127,8 @@ import {
 import {Wizard} from '#/screens/StarterPack/Wizard'
 import TopicScreen from '#/screens/Topic'
 import {VideoFeed} from '#/screens/VideoFeed'
+import KeysScreen from '#/screens/wallet/Keys'
+import {WalletHomeScreen} from '#/screens/wallet/WalletHome'
 import {type Theme, useTheme} from '#/alf'
 import {
   EmailDialogScreenID,
@@ -609,6 +611,11 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
           requireAuth: true,
         }}
       />
+      <Stack.Screen
+        name="WalletHome"
+        getComponent={() => WalletHomeScreen}
+        options={{title: title(msg`Wallet`)}}
+      />
     </>
   )
 }
@@ -645,7 +652,29 @@ function TabsNavigator() {
         name="MyProfileTab"
         getComponent={() => MyProfileTabNavigator}
       />
+      <Tab.Screen name="WalletTab" getComponent={() => WalletTabNavigator} />
     </Tab.Navigator>
+  )
+}
+
+function WalletTabNavigator() {
+  const t = useTheme()
+  return (
+    <Flat.Navigator
+      screenOptions={screenOptions(t)}
+      initialRouteName="WalletHome">
+      <Flat.Screen
+        name="WalletHome"
+        getComponent={() => WalletHomeScreen}
+        options={{title: i18n._(msg`Wallet`)}}
+      />
+      <Flat.Screen
+        name="Wallet"
+        getComponent={() => KeysScreen}
+        options={{title: i18n._(msg`Wallet`)}}
+      />
+      {commonScreens(Flat)}
+    </Flat.Navigator>
   )
 }
 

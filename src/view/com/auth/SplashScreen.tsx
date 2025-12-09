@@ -13,6 +13,7 @@ import {atoms as a, useTheme} from '#/alf'
 import {AppLanguageDropdown} from '#/components/AppLanguageDropdown'
 import {Button, ButtonText} from '#/components/Button'
 import {Text} from '#/components/Typography'
+import {navigate} from '#/Navigation'
 
 export const SplashScreen = ({
   onPressSignin,
@@ -26,6 +27,10 @@ export const SplashScreen = ({
 
   const playHaptic = useHaptics()
   const insets = useSafeAreaInsets()
+
+  const onPressWallet = () => {
+    navigate('WalletHome')
+  }
 
   return (
     <CenteredView style={[a.h_full, a.flex_1]}>
@@ -58,18 +63,16 @@ export const SplashScreen = ({
             <Button
               testID="createAccountButton"
               onPress={() => {
-                onPressCreateAccount()
+                onPressWallet()
                 playHaptic('Light')
               }}
-              label={_(msg`Create new account`)}
-              accessibilityHint={_(
-                msg`Opens flow to create a new Bluesky account`,
-              )}
+              label={_(msg`Wallet`)}
+              accessibilityHint={_(msg`Opens wallet screen`)}
               size="large"
               variant="solid"
               color="primary">
               <ButtonText>
-                <Trans>Create account</Trans>
+                <Trans>Wallet</Trans>
               </ButtonText>
             </Button>
             <Button

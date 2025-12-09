@@ -27,6 +27,7 @@ import {
   Bell_Filled_Corner0_Rounded as BellFilled,
   Bell_Stroke2_Corner0_Rounded as Bell,
 } from '#/components/icons/Bell'
+import {CC_Stroke2_Corner0_Rounded as WalletIcon} from '#/components/icons/CC'
 import {
   HomeOpen_Filled_Corner0_Rounded as HomeFilled,
   HomeOpen_Stoke2_Corner0_Rounded as Home,
@@ -42,6 +43,7 @@ import {
   UserCircle_Stroke2_Corner0_Rounded as UserCircle,
 } from '#/components/icons/UserCircle'
 import {Text} from '#/components/Typography'
+import {navigate} from '#/Navigation'
 import {styles} from './BottomBarStyles'
 
 export function BottomBarWeb() {
@@ -59,6 +61,11 @@ export function BottomBarWeb() {
   const notificationCountStr = useUnreadNotifications()
   const hasHomeBadge = useHomeBadge()
   const gate = useGate()
+
+  const showWallet = React.useCallback(() => {
+    closeAllActiveElements()
+    navigate('WalletHome')
+  }, [closeAllActiveElements])
 
   const showSignIn = React.useCallback(() => {
     closeAllActiveElements()
@@ -176,6 +183,17 @@ export function BottomBarWeb() {
                   )
                 }}
               </NavItem>
+              <NavItem routeName="WalletTab" href="/wallet/home">
+                {({isActive}) => {
+                  return (
+                    <WalletIcon
+                      aria-hidden={true}
+                      width={iconWidth}
+                      style={[styles.ctrlIcon, t.atoms.text, styles.walletIcon]}
+                    />
+                  )
+                }}
+              </NavItem>
             </>
           )}
         </>
@@ -202,13 +220,13 @@ export function BottomBarWeb() {
 
             <View style={[a.flex_row, a.flex_wrap, a.gap_sm]}>
               <Button
-                onPress={showCreateAccount}
-                label={_(msg`Create account`)}
+                onPress={showWallet}
+                label={_(msg`Wallet`)}
                 size="small"
                 variant="solid"
                 color="primary">
                 <ButtonText>
-                  <Trans>Create account</Trans>
+                  <Trans>Wallet</Trans>
                 </ButtonText>
               </Button>
               <Button
