@@ -128,6 +128,7 @@ import {Wizard} from '#/screens/StarterPack/Wizard'
 import TopicScreen from '#/screens/Topic'
 import {VideoFeed} from '#/screens/VideoFeed'
 import KeysScreen from '#/screens/wallet/Keys'
+import {KeysScreen as WalletScreen} from '#/screens/wallet/Keys'
 import {WalletHomeScreen} from '#/screens/wallet/WalletHome'
 import {type Theme, useTheme} from '#/alf'
 import {
@@ -670,7 +671,7 @@ function WalletTabNavigator() {
       />
       <Flat.Screen
         name="Wallet"
-        getComponent={() => KeysScreen}
+        getComponent={() => WalletScreen}
         options={{title: i18n._(msg`Wallet`)}}
       />
       {commonScreens(Flat)}
