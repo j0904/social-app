@@ -126,7 +126,7 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "bcp-47": "^2.1.0",
     "bcp-47-match": "^2.0.3",
-    "bigtangle-ts": "^1.0.0",
+    "bigtangle-ts": "^1.0.2",
     "date-fns": "^2.30.0",
     "email-validator": "^2.0.4",
     "emoji-mart": "^5.5.2",
@@ -140,6 +140,7 @@
     "expo-clipboard": "~8.0.7",
     "expo-dev-client": "~6.0.16",
     "expo-device": "~8.0.9",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.17",
     "expo-font": "~14.0.9",
     "expo-haptics": "~15.0.7",
@@ -319,8 +320,11 @@
     "transform": {
       "\\.[jt]sx?$": "babel-jest"
     },
+    "moduleNameMapper": {
+      "^bigtangle-ts$": "<rootDir>/node_modules/bigtangle-ts/dist/index.js"
+    },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@discord|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@discord|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match|bigtangle-ts)"
     ],
     "modulePathIgnorePatterns": [
       "__tests__/.*/__mocks__",

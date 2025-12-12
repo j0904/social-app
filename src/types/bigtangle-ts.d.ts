@@ -1,65 +1,69 @@
 declare module 'bigtangle-ts' {
-  interface WalletInfo {
-    address: string
-    publicKey: string
-    privateKey: string
-    ethAddress?: string
+  // Type definitions for bigtangle-ts module to prevent TypeScript errors
+  // Based on usage in src/lib/bigtangle-wrapper.ts and src/lib/safe-bigtangle.ts
+  //
+  // NOTE: The bigtangle-ts library has known circular dependency issues at runtime.
+  // Use dynamic imports (await import('bigtangle-ts')) to avoid initialization problems.
+  // See src/lib/bigtangle-wrapper.ts for proper usage pattern.
+
+  export class Address {
+    constructor(...args: any[])
+    static fromKey(params: any, key: ECKey): Address
+    toString(): string
   }
 
-  interface KeyPair {
-    address: string
-    publicKey: string
-    privateKey: string
+  export class ECKey {
+    constructor(...args: any[])
+    static createNewKey(): ECKey
+    static fromPrivate(privateKeyBytes: Uint8Array, compressed: boolean): ECKey
+    toString(): string
+    readonly privateKey: Uint8Array
   }
 
-  class BigTangle {
-    constructor()
-
-    /**
-     * Generate a new wallet with address, public key, and private key
-     */
-    generateWallet(): Promise<WalletInfo>
-
-    /**
-     * Generate a new key pair
-     */
-    generateKeyPair(): Promise<KeyPair>
-
-    /**
-     * Validate if an address is valid
-     */
-    validateAddress(address: string): Promise<boolean>
-
-    /**
-     * Derive an address from a public key
-     */
-    deriveAddress(publicKey: string, index: number): Promise<string>
-
-    /**
-     * Encrypt data with a password
-     */
-    encrypt(data: string, password: string): Promise<string>
-
-    /**
-     * Decrypt data with a password
-     */
-    decrypt(encryptedData: string, password: string): Promise<string>
-
-    /**
-     * Sign a message with a private key
-     */
-    signMessage(message: string, privateKey: string): Promise<string>
-
-    /**
-     * Verify a signature
-     */
-    verifySignature(
-      message: string,
-      signature: string,
-      publicKey: string,
-    ): Promise<boolean>
+  export class EncryptedData {
+    constructor(...args: any[])
   }
 
-  export {BigTangle}
-  export default BigTangle
+  export class KeyCrypterScrypt {
+    constructor(...args: any[])
+    deriveKey(password: string): any
+    encrypt(data: string, key: any): string
+    decrypt(encryptedData: string, key: any): string
+  }
+
+  export class TestParams {
+    constructor(...args: any[])
+  }
+
+  export class TestNetParams {
+    constructor(...args: any[])
+    static get(): NetworkParameters
+  }
+
+  export class NetworkParameters {
+    constructor(...args: any[])
+  }
+
+  export class Coin {
+    constructor(...args: any[])
+  }
+
+  export class Utils {
+    constructor(...args: any[])
+    static HEX: any
+  }
+
+  const bigtangle: {
+    Address: typeof Address
+    ECKey: typeof ECKey
+    EncryptedData: typeof EncryptedData
+    KeyCrypterScrypt: typeof KeyCrypterScrypt
+    TestParams: typeof TestParams
+    TestNetParams: typeof TestNetParams
+    NetworkParameters: typeof NetworkParameters
+    Coin: typeof Coin
+    Utils: typeof Utils
+  }
+
+  export default bigtangle
 }

@@ -1,5 +1,5 @@
 import React, {useRef} from 'react'
-import {type TextInput, View} from 'react-native'
+import {Platform, type TextInput, View} from 'react-native'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 import * as EmailValidator from 'email-validator'
@@ -9,7 +9,9 @@ import {isEmailMaybeInvalid} from '#/lib/strings/email'
 import {logger} from '#/logger'
 import {is13, is18, useSignupContext} from '#/screens/Signup/state'
 import {Policies} from '#/screens/Signup/StepInfo/Policies'
+import {createWallet, saveKeyToFile} from '#/screens/wallet/hdwallet'
 import {atoms as a, native} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import * as DateField from '#/components/forms/DateField'
 import {type DateFieldRef} from '#/components/forms/DateField/types'
 import {FormError} from '#/components/forms/FormError'
@@ -20,6 +22,7 @@ import {Lock_Stroke2_Corner0_Rounded as Lock} from '#/components/icons/Lock'
 import {Ticket_Stroke2_Corner0_Rounded as Ticket} from '#/components/icons/Ticket'
 import {Loader} from '#/components/Loader'
 import {usePreemptivelyCompleteActivePolicyUpdate} from '#/components/PolicyUpdateOverlay/usePreemptivelyCompleteActivePolicyUpdate'
+import {Text} from '#/components/Typography'
 import {BackNextButtons} from '../BackNextButtons'
 
 function sanitizeDate(date: Date): Date {
@@ -49,9 +52,7 @@ export function StepInfo({
     usePreemptivelyCompleteActivePolicyUpdate()
 
   const inviteCodeValueRef = useRef<string>(state.inviteCode)
-  const emailValueRef = useRef<string>(state.email)
   const prevEmailValueRef = useRef<string>(state.email)
-  const passwordValueRef = useRef<string>(state.password)
 
   const emailInputRef = useRef<TextInput>(null)
   const passwordInputRef = useRef<TextInput>(null)
@@ -59,7 +60,96 @@ export function StepInfo({
 
   const [hasWarnedEmail, setHasWarnedEmail] = React.useState<boolean>(false)
 
-  const tldtsRef = React.useRef<typeof tldts>(undefined)
+  // Wallet state for demo
+  const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
+  const [showWalletPassword, setShowWalletPassword] = React.useState(false)
+  const [walletPassword, setWalletPassword] = React.useState('')
+  const [generatedMnemonic, setGeneratedMnemonic] = React.useState<
+    string | null
+  >(null)
+  const [generatedFilename, setGeneratedFilename] = React.useState<
+    string | null
+  >(null)
+
+  // Handler for generating a new wallet and saving to file
+  const handleGenerateWallet = React.useCallback(async () => {
+    try {
+      const walletData = await createWallet()
+      setGeneratedMnemonic(JSON.stringify(walletData)) // Store wallet data as JSON string
+      const filename = `bsky-wallet-${Date.now()}.json` // Example filename
+
+      setGeneratedFilename(filename)
+      setShowWalletPassword(true)
+    } catch (e) {
+      setWalletInfo('Error generating wallet: ' + (e as Error).message)
+    }
+  }, [])
+
+  // Handler for actually generating and saving wallet after password entry
+  const handleConfirmGenerateWallet = React.useCallback(async () => {
+    if (!generatedMnemonic || !generatedFilename) {
+      setWalletInfo('Error: Wallet not generated yet.')
+      return
+    }
+    try {
+      // The generatedMnemonic contains the wallet data as JSON string
+      const walletData = JSON.parse(generatedMnemonic)
+      const fileContent = await saveKeyToFile(walletData, walletPassword)
+      // Set email/password from the wallet in UI
+      dispatch({type: 'setEmail', value: walletData.credentials.user})
+      dispatch({type: 'setPassword', value: walletData.credentials.password})
+      dispatch({type: 'clearError'}) // Clear any existing validation errors
+      if (Platform.OS === 'web') {
+        // Use File System Access API if available
+        if ('showSaveFilePicker' in window) {
+          try {
+            const opts = {
+              types: [
+                {
+                  description: 'Wallet Files',
+                  accept: {'application/json': ['.json', '.wallet', '.txt']},
+                },
+              ],
+              suggestedName: generatedFilename,
+            }
+            // @ts-ignore
+            const handle = await window.showSaveFilePicker(opts)
+            const writable = await handle.createWritable()
+            await writable.write(fileContent)
+            await writable.close()
+            setWalletInfo(`Wallet generated and saved to: ${handle.name}`)
+          } catch (e) {
+            setWalletInfo('Wallet save cancelled or failed.')
+          }
+        } else {
+          // fallback: download as file
+          const walletBlob = new Blob([fileContent], {type: 'application/json'})
+          const link = document.createElement('a')
+          link.href = URL.createObjectURL(walletBlob)
+          link.download = generatedFilename
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(link.href)
+          setWalletInfo(
+            `Wallet generated and downloaded as: ${generatedFilename}`,
+          )
+        }
+      } else {
+        setWalletInfo(
+          `File download triggered for native (simulated).\nFilename: ${generatedFilename}`,
+        )
+      }
+    } catch (e: any) {
+      setWalletInfo('Error saving wallet: ' + (e.message || e.toString()))
+    }
+    setShowWalletPassword(false)
+    setWalletPassword('')
+    setGeneratedMnemonic(null)
+    setGeneratedFilename(null)
+  }, [generatedMnemonic, generatedFilename, walletPassword, dispatch])
+
+  const tldtsRef = React.useRef<typeof tldts>()
   React.useEffect(() => {
     // @ts-expect-error - valid path
     import('tldts/dist/index.cjs.min.js').then(tldts => {
@@ -72,9 +162,9 @@ export function StepInfo({
 
   const onNextPress = () => {
     const inviteCode = inviteCodeValueRef.current
-    const email = emailValueRef.current
+    const email = state.email
     const emailChanged = prevEmailValueRef.current !== email
-    const password = passwordValueRef.current
+    const password = state.password
 
     if (!is13(state.dateOfBirth)) {
       return
@@ -133,8 +223,6 @@ export function StepInfo({
 
     preemptivelyCompleteActivePolicyUpdate()
     dispatch({type: 'setInviteCode', value: inviteCode})
-    dispatch({type: 'setEmail', value: email})
-    dispatch({type: 'setPassword', value: password})
     dispatch({type: 'next'})
     logger.metric(
       'signup:nextPressed',
@@ -160,6 +248,56 @@ export function StepInfo({
           </View>
         ) : state.serviceDescription ? (
           <>
+            <View style={[a.flex_col, a.gap_md]}>
+              <Button
+                variant="outline"
+                color="secondary"
+                size="large"
+                onPress={handleGenerateWallet}
+                label={_(msg`Generate Wallet`)}>
+                <ButtonText>
+                  <Trans>Generate Wallet</Trans>
+                </ButtonText>
+              </Button>
+            </View>
+
+            {walletInfo && (
+              <Text style={[a.text_sm, a.text_center, a.mt_md]}>
+                {walletInfo}
+              </Text>
+            )}
+
+            {showWalletPassword && (
+              <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
+                <Text style={[a.text_center]}>
+                  <Trans>Enter a password to protect your wallet file:</Trans>
+                </Text>
+                <input
+                  type="password"
+                  value={walletPassword}
+                  onChange={e => setWalletPassword(e.target.value)}
+                  style={{
+                    padding: 8,
+                    borderRadius: 4,
+                    border: '1px solid #ccc',
+                    width: '100%',
+                  }}
+                  placeholder="Wallet password"
+                  autoFocus
+                />
+                <Button
+                  variant="solid"
+                  color="primary"
+                  size="large"
+                  onPress={handleConfirmGenerateWallet}
+                  label={_(msg`Save Wallet`)}>
+                  <ButtonText>
+                    <Trans>Save Wallet</Trans>
+                  </ButtonText>
+                </Button>
+              </View>
+            )}
+
             {state.serviceDescription.inviteCodeRequired && (
               <View>
                 <TextField.LabelText>
@@ -201,7 +339,8 @@ export function StepInfo({
                   testID="emailInput"
                   inputRef={emailInputRef}
                   onChangeText={value => {
-                    emailValueRef.current = value.trim()
+                    // emailValueRef.current = value.trim() // No longer needed as state.email is directly used
+                    dispatch({type: 'setEmail', value: value.trim()})
                     if (hasWarnedEmail) {
                       setHasWarnedEmail(false)
                     }
@@ -214,7 +353,7 @@ export function StepInfo({
                     }
                   }}
                   label={_(msg`Enter your email address`)}
-                  defaultValue={state.email}
+                  value={state.email}
                   autoCapitalize="none"
                   autoComplete="email"
                   keyboardType="email-address"
@@ -236,13 +375,14 @@ export function StepInfo({
                   testID="passwordInput"
                   inputRef={passwordInputRef}
                   onChangeText={value => {
-                    passwordValueRef.current = value
+                    // passwordValueRef.current = value // No longer needed as state.password is directly used
+                    dispatch({type: 'setPassword', value})
                     if (state.errorField === 'password' && value.length >= 8) {
                       dispatch({type: 'clearError'})
                     }
                   }}
                   label={_(msg`Choose your password`)}
-                  defaultValue={state.password}
+                  value={state.password}
                   secureTextEntry
                   autoComplete="new-password"
                   autoCapitalize="none"
@@ -283,7 +423,7 @@ export function StepInfo({
         ) : undefined}
       </View>
       <BackNextButtons
-        hideNext={!is13(state.dateOfBirth)}
+        isNextDisabled={!is13(state.dateOfBirth)}
         showRetry={isServerError}
         isLoading={state.isLoading}
         onBackPress={onPressBack}

@@ -115,5 +115,12 @@ module.exports = async function (env, argv) {
     }),
   )
 
+  // Handle circular dependencies more gracefully
+  config.resolve = config.resolve || {}
+  config.resolve.symlinks = false
+
+  // Ignore source map errors for problematic packages
+  config.ignoreWarnings = [/Failed to parse source map/]
+
   return config
 }

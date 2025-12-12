@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Keyboard,
   LayoutAnimation,
+  Platform,
   type TextInput,
   View,
 } from 'react-native'
@@ -22,6 +23,7 @@ import {isIOS} from '#/platform/detection'
 import {useSetHasCheckedForStarterPack} from '#/state/preferences/used-starter-packs'
 import {useSessionApi} from '#/state/session'
 import {useLoggedOutViewControls} from '#/state/shell/logged-out'
+import {loadWallet} from '#/screens/wallet/hdwallet'
 import {atoms as a, ios, useTheme} from '#/alf'
 import {Button, ButtonIcon, ButtonText} from '#/components/Button'
 import {FormError} from '#/components/forms/FormError'
@@ -76,6 +78,77 @@ export const LoginForm = ({
   const requestNotificationsPermission = useRequestNotificationsPermission()
   const {setShowLoggedOut} = useLoggedOutViewControls()
   const setHasCheckedForStarterPack = useSetHasCheckedForStarterPack()
+
+  // Wallet state for demo
+  const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
+  const [walletPassword, setWalletPassword] = React.useState('')
+  const [showWalletLoadPassword, setShowWalletLoadPassword] =
+    React.useState(false)
+  const [pendingWalletFile, setPendingWalletFile] = React.useState<File | null>(
+    null,
+  )
+
+  // Handler for loading a wallet from file (web only, native simulated)
+  const handleLoadWallet = React.useCallback(async () => {
+    if (Platform.OS === 'web') {
+      try {
+        // Create a hidden file input for wallet file selection
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json,.wallet,.txt,application/json,text/plain'
+        input.style.display = 'none'
+        document.body.appendChild(input)
+        input.click()
+        input.onchange = async () => {
+          if (!input.files || input.files.length === 0) {
+            setWalletInfo('No file selected.')
+            document.body.removeChild(input)
+            return
+          }
+          setPendingWalletFile(input.files[0])
+          setShowWalletLoadPassword(true)
+          document.body.removeChild(input)
+        }
+      } catch (e: any) {
+        setWalletInfo('Error loading wallet: ' + (e.message || e.toString()))
+      }
+    } else {
+      setWalletInfo(
+        'Wallet loading from file is not implemented for native (simulated).',
+      )
+    }
+  }, [])
+
+  // Handler for confirming wallet load with password
+  const handleConfirmLoadWallet = React.useCallback(async () => {
+    if (!pendingWalletFile) {
+      setWalletInfo('No wallet file selected.')
+      setShowWalletLoadPassword(false)
+      return
+    }
+    try {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const fileData = reader.result as string
+          const walletFile = await loadWallet(fileData, walletPassword) // Need to provide password
+          identifierValueRef.current = walletFile.credentials.user
+          passwordValueRef.current = walletFile.credentials.password
+          setWalletInfo(`Wallet loaded. Address: ${walletFile.wallet.address}`)
+        } catch (e: any) {
+          setWalletInfo('Failed to load wallet: ' + (e.message || e.toString()))
+        }
+        setShowWalletLoadPassword(false)
+        setWalletPassword('')
+        setPendingWalletFile(null)
+      }
+      reader.readAsText(pendingWalletFile)
+    } catch (e: any) {
+      setWalletInfo('Error reading wallet file: ' + (e.message || e.toString()))
+      setShowWalletLoadPassword(false)
+      setPendingWalletFile(null)
+    }
+  }, [pendingWalletFile, walletPassword])
 
   const onPressSelectService = React.useCallback(() => {
     Keyboard.dismiss()
@@ -189,6 +262,57 @@ export const LoginForm = ({
           onOpenDialog={onPressSelectService}
         />
       </View>
+
+      <View style={[a.flex_col, a.gap_md]}>
+        <Button
+          variant="outline"
+          color="primary"
+          size="large"
+          onPress={handleLoadWallet}
+          label={_(msg`Load Wallet`)}>
+          <ButtonText>
+            <Trans>Load Wallet</Trans>
+          </ButtonText>
+        </Button>
+      </View>
+
+      {walletInfo && (
+        <Text style={[a.text_sm, a.text_center, a.mt_md]}>{walletInfo}</Text>
+      )}
+
+      {showWalletLoadPassword && (
+        <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
+          <Text style={[a.text_center]}>
+            <Trans>Enter your wallet password to load the file:</Trans>
+          </Text>
+          <input
+            type="password"
+            value={walletPassword}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setWalletPassword(e.target.value)
+            }
+            style={{
+              padding: 8,
+              borderRadius: 4,
+              border: '1px solid #ccc',
+              width: '100%',
+            }}
+            placeholder="Wallet password"
+            autoFocus
+          />
+          <Button
+            variant="solid"
+            color="primary"
+            size="large"
+            onPress={handleConfirmLoadWallet}
+            label={_(msg`Load Wallet`)}>
+            <ButtonText>
+              <Trans>Load Wallet</Trans>
+            </ButtonText>
+          </Button>
+        </View>
+      )}
+
       <View>
         <TextField.LabelText>
           <Trans>Account</Trans>
@@ -206,10 +330,10 @@ export const LoginForm = ({
               autoComplete="username"
               returnKeyType="next"
               textContentType="username"
-              defaultValue={initialHandle || ''}
-              onChangeText={v => {
-                identifierValueRef.current = v
-              }}
+              value={identifierValueRef.current}
+              onChangeText={value =>
+                (identifierValueRef.current = value.toLowerCase())
+              }
               onSubmitEditing={() => {
                 passwordRef.current?.focus()
               }}
@@ -234,9 +358,8 @@ export const LoginForm = ({
               enablesReturnKeyAutomatically={true}
               secureTextEntry={true}
               clearButtonMode="while-editing"
-              onChangeText={v => {
-                passwordValueRef.current = v
-              }}
+              value={passwordValueRef.current}
+              onChangeText={value => (passwordValueRef.current = value)}
               onSubmitEditing={onPressNext}
               blurOnSubmit={false} // HACK: https://github.com/facebook/react-native/issues/21911#issuecomment-558343069 Keyboard blur behavior is now handled in onSubmitEditing
               editable={!isProcessing}

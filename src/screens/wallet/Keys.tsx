@@ -1,94 +1,23 @@
-import {useEffect, useState} from 'react'
-import {Alert, Linking, TextInput, View} from 'react-native'
-import * as FileSystem from 'expo-file-system'
+/* eslint-disable simple-import-sort/imports */
 import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 import {format} from 'date-fns'
+import * as FileSystem from 'expo-file-system'
+import {useEffect, useState} from 'react'
+import {Alert, Linking, TextInput, View} from 'react-native'
 
-import {type CommonNavigatorParams} from '#/lib/routes/types'
-import {isWeb} from '#/platform/detection'
-import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import {useTheme} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
-
-// Initialize BigTangle wallet manager
-const initializeBigTangle = async () => {
-  try {
-    // Import the real BigTangle library
-    const BigTangleModule = await import('bigtangle-ts')
-    // Use a more careful approach to avoid initialization issues
-    if (BigTangleModule && BigTangleModule.BigTangle) {
-      return new BigTangleModule.BigTangle()
-    } else {
-      throw new Error('BigTangle class not found in module')
-    }
-  } catch (e) {
-    console.error('Failed to load BigTangle library:', e)
-    // Provide a mock implementation for web or when the library fails
-    if (isWeb) {
-      // Return a mock BigTangle for web environments
-      return {
-        generateWallet: () => ({
-          address: `mock_address_${Date.now()}`,
-          publicKey: `mock_public_key_${Date.now()}`,
-          privateKey: `mock_private_key_${Date.now()}`,
-          ethAddress: `mock_eth_address_${Date.now()}`,
-        }),
-        generateKeyPair: () => ({
-          address: `mock_address_${Date.now()}`,
-          publicKey: `mock_public_key_${Date.now()}`,
-          privateKey: `mock_private_key_${Date.now()}`,
-        }),
-        validateAddress: async (address: string) => {
-          // Basic mock validation
-          return typeof address === 'string' && address.length > 5
-        },
-        encrypt: async (data: string, password: string) => {
-          // Simple mock encryption
-          return JSON.stringify({
-            data: btoa(unescape(encodeURIComponent(data + password + 'salt'))),
-            encrypted: true,
-            format: 'mock-encryption-v1',
-          })
-        },
-        decrypt: async (encryptedDataStr: string, password: string) => {
-          try {
-            const encryptedData = JSON.parse(encryptedDataStr)
-            if (encryptedData && encryptedData.data) {
-              return (
-                decodeURIComponent(escape(atob(encryptedData.data)))?.replace(
-                  password + 'salt',
-                  '',
-                ) || null
-              )
-            }
-            return encryptedDataStr
-          } catch {
-            return encryptedDataStr
-          }
-        },
-        signMessage: async (message: string, privateKey: string) => {
-          return `mock_signature_for_${message}`
-        },
-        verifySignature: async (
-          message: string,
-          signature: string,
-          publicKey: string,
-        ) => {
-          return signature === `mock_signature_for_${message}`
-        },
-        deriveAddress: async (publicKey: string, index: number) => {
-          return `mock_derived_address_${index}_${Date.now()}`
-        },
-      }
-    } else {
-      throw new Error(
-        'BigTangle library is not available: ' + (e as Error).message,
-      )
-    }
-  }
-}
+import {type CommonNavigatorParams} from '#/lib/routes/types'
+import {isWeb} from '#/platform/detection'
+import * as SettingsList from '#/screens/Settings/components/SettingsList'
+import {
+  createWallet,
+  saveKeyToFile,
+  loadWallet,
+  type WalletFile as HDWalletFile,
+} from './hdwallet'
 
 // Define types for our wallet functionality
 type WalletFile = {
@@ -126,26 +55,7 @@ const WalletScreen = (
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null)
   const [_isLoading, setIsLoading] = useState<boolean>(false)
   const [addKeyMode, setAddKeyMode] = useState<boolean>(false)
-  const [bigtangleInstance, setBigTangleInstance] = useState<any>(null)
-
-  // Initialize BigTangle wallet manager when needed
-  const getBigTangleInstance = async () => {
-    if (!bigtangleInstance) {
-      try {
-        const newInstance = await initializeBigTangle()
-        setBigTangleInstance(newInstance)
-        return newInstance
-      } catch (error) {
-        console.error('Error initializing BigTangle:', error)
-        Alert.alert(
-          'Error',
-          'BigTangle library failed to initialize: ' + (error as Error).message,
-        )
-        throw error
-      }
-    }
-    return bigtangleInstance
-  }
+  // State for wallet operations
 
   // Load wallet files from documents directory on component mount
   useEffect(() => {
@@ -209,187 +119,72 @@ const WalletScreen = (
         fileContent = await FileSystem.readAsStringAsync(walletPath)
       }
 
-      // Get BigTangle instance to potentially enhance wallet data
-      const bigtangle = await getBigTangleInstance()
-
-      // Check if the content is encrypted
-      let parsedContent
+      // First check if this is a traditional wallet file (JSON format)
       try {
-        parsedContent = JSON.parse(fileContent)
+        const parsedContent = JSON.parse(fileContent)
 
-        // Use BigTangle to validate addresses if available
-        if (
-          bigtangle.validateAddress &&
-          typeof bigtangle.validateAddress === 'function' &&
-          parsedContent.addresses
-        ) {
-          for (const address of parsedContent.addresses) {
-            try {
-              const isValid = await bigtangle.validateAddress(address)
-              if (!isValid) {
-                console.warn(`Invalid address found in wallet: ${address}`)
-              }
-            } catch (e) {
-              console.warn(`Could not validate address ${address}:`, e)
-            }
-          }
-        }
-
-        if (parsedContent.encrypted) {
-          if (!password) {
-            // If the wallet is encrypted and no password was provided,
-            // we need to prompt for password or handle accordingly
-            Alert.alert(
-              'Encrypted Wallet',
-              'This wallet is encrypted. Please provide the password.',
-            )
-            setIsEncrypted(true) // Switch to password entry mode
-            return
+        // If it contains wallet data in the old format, handle it
+        if (parsedContent.addresses && Array.isArray(parsedContent.addresses)) {
+          // This is an older wallet format
+          const newWalletData: WalletData = {
+            id: '1',
+            addresses: parsedContent.addresses || [],
+            publickeys: parsedContent.publickeys || [],
+            ethaddresses: parsedContent.ethaddresses || [],
+            encrypted: parsedContent.encrypted || false,
+            checkAddress: parsedContent.checkAddress || true,
+            keys: parsedContent.keys || [],
           }
 
-          // Decrypt the content
-          const decryptedContent = await decryptData(fileContent, password)
-          if (decryptedContent === null) {
-            Alert.alert('Error', 'Failed to decrypt wallet. Invalid password.')
-            return
-          }
-
-          parsedContent = JSON.parse(decryptedContent)
+          setWalletData(newWalletData)
+          return
         }
-      } catch (e) {
-        // If it's not JSON, it might not be encrypted, so treat as regular content
-        parsedContent = {
-          addresses: [],
-          publickeys: [],
-          ethaddresses: [],
-          encrypted: false,
-          checkAddress: false,
-        }
+      } catch (parseErr) {
+        // It's not a JSON file, possibly an encrypted one from hdwallet
       }
 
-      // Update the wallet data state
-      const newWalletData: WalletData = {
-        id: '1',
-        addresses: parsedContent.addresses || [],
-        publickeys: parsedContent.publickeys || [],
-        ethaddresses: parsedContent.ethaddresses || [],
-        encrypted: parsedContent.encrypted || false,
-        checkAddress: parsedContent.checkAddress || true,
-      }
+      // Try to load as an hdwallet encrypted file
+      try {
+        // Try with provided password or empty string
+        const pwdToUse = password || ''
+        const walletFile: HDWalletFile = await loadWallet(fileContent, pwdToUse)
 
-      setWalletData(newWalletData)
+        // Update the wallet data state
+        const newWalletData: WalletData = {
+          id: '1',
+          addresses: [walletFile.wallet.address],
+          publickeys: [], // Need to extract from the private key if needed
+          ethaddresses: [], // Add ETH addresses if available
+          encrypted: !!pwdToUse, // Consider it encrypted if a password was provided/used
+          checkAddress: true,
+          keys: [
+            {
+              address: walletFile.wallet.address,
+              publicKey: '', // Extract this from the private key if needed
+              privateKey: walletFile.wallet.privateKey,
+            },
+          ],
+        }
+
+        setWalletData(newWalletData)
+        return
+      } catch (hdwalletError) {
+        console.error(
+          'Error loading wallet with hdwallet module:',
+          hdwalletError,
+        )
+        // If it fails, show an alert to the user
+        Alert.alert(
+          'Error',
+          'Failed to load wallet: ' + (hdwalletError as Error).message,
+        )
+      }
     } catch (error) {
       console.error('Error loading wallet data:', error)
-      Alert.alert('Error', 'Failed to load wallet data')
-    }
-  }
-
-  // Generate a more robust encryption key using a simple hash approach
-  // Note: This is still a simplified approach for demonstration. A real implementation
-  // would use a proper cryptographic library like expo-crypto if available
-  const generateEncryptionKey = (password: string): string => {
-    // Simple hash approach - in a real app, use proper crypto like PBKDF2
-    let hash = password
-    for (let i = 0; i < 1000; i++) {
-      // Simulate multiple rounds for basic key stretching
-      hash = Array.from(hash).reduce(
-        (acc, char) => acc + char.charCodeAt(0).toString(16),
-        '',
+      Alert.alert(
+        'Error',
+        'Failed to load wallet data: ' + (error as Error).message,
       )
-      if (hash.length > 64) hash = hash.substring(0, 64) // Limit length
-    }
-    return hash
-  }
-
-  // Encrypt data with a password using a basic XOR cipher (for demonstration only)
-  // A production implementation would use proper AES encryption
-  const encryptData = async (
-    data: string,
-    password: string,
-  ): Promise<string> => {
-    const bigtangle = await getBigTangleInstance()
-
-    // Use BigTangle's encryption if available, otherwise fall back to custom
-    if (bigtangle.encrypt && typeof bigtangle.encrypt === 'function') {
-      return await bigtangle.encrypt(data, password)
-    } else {
-      // Fallback to custom encryption
-      const key = generateEncryptionKey(password)
-      const keyBytes = Array.from(key).map(c => c.charCodeAt(0))
-      const dataBytes = Array.from(data).map(c => c.charCodeAt(0))
-
-      const encryptedBytes = dataBytes.map(
-        (byte, i) => byte ^ keyBytes[i % keyBytes.length],
-      )
-
-      // Convert to base64 for storage
-      const encryptedString = String.fromCharCode(...encryptedBytes)
-      const base64Encrypted = btoa(
-        encodeURIComponent(encryptedString).replace(
-          /%([0-9A-F]{2})/g,
-          function (match, p1) {
-            return String.fromCharCode(parseInt(p1, 16))
-          },
-        ),
-      )
-
-      return JSON.stringify({
-        data: base64Encrypted,
-        salt: key.substring(0, 16), // store part of key as salt equivalent
-        encrypted: true,
-        format: 'xor-encryption-v1',
-      })
-    }
-  }
-
-  // Decrypt data with a password
-  const decryptData = async (
-    encryptedDataStr: string,
-    password: string,
-  ): Promise<string | null> => {
-    // Get BigTangle instance to try library's decryption first
-    const bigtangle = await getBigTangleInstance()
-
-    // Use BigTangle's decryption if available
-    if (bigtangle.decrypt && typeof bigtangle.decrypt === 'function') {
-      try {
-        return await bigtangle.decrypt(encryptedDataStr, password)
-      } catch (e) {
-        console.log(
-          'BigTangle decryption failed, falling back to custom method:',
-          e,
-        )
-        // Continue to fallback method below
-      }
-    }
-
-    // Fallback to custom decryption
-    try {
-      const encryptedData = JSON.parse(encryptedDataStr)
-      if (
-        encryptedData.encrypted &&
-        encryptedData.format === 'xor-encryption-v1'
-      ) {
-        const key = generateEncryptionKey(password)
-        const encryptedString = decodeURIComponent(
-          escape(atob(encryptedData.data)),
-        )
-        const encryptedBytes = Array.from(encryptedString).map(c =>
-          c.charCodeAt(0),
-        )
-        const keyBytes = Array.from(key).map(c => c.charCodeAt(0))
-
-        const decryptedBytes = encryptedBytes.map(
-          (byte, i) => byte ^ keyBytes[i % keyBytes.length],
-        )
-
-        return String.fromCharCode(...decryptedBytes)
-      }
-      // If not encrypted or different format, return as is
-      return encryptedDataStr
-    } catch (error) {
-      console.error('Error decrypting data:', error)
-      return null
     }
   }
 
@@ -404,25 +199,11 @@ const WalletScreen = (
     setIsLoading(false)
   }
 
-  // Create a new wallet using BigTangle library
+  // Create a new wallet using the hdwallet module
   const createNewWallet = async () => {
     try {
-      // Get the BigTangle instance
-      const bigtangle = await getBigTangleInstance()
-      // Generate a new wallet using BigTangle
-      const walletInfo = await bigtangle.generateWallet()
-
-      // Use additional BigTangle features for enhanced wallet creation
-      // For example, validate the generated address
-      if (
-        bigtangle.validateAddress &&
-        typeof bigtangle.validateAddress === 'function'
-      ) {
-        const isValid = await bigtangle.validateAddress(walletInfo.address)
-        if (!isValid) {
-          throw new Error('Generated wallet address is invalid')
-        }
-      }
+      // Use the new hdwallet module to create a wallet
+      const newHDWallet = await createWallet()
 
       const id = Math.random().toString(36).substring(2, 10)
       const now = new Date()
@@ -439,52 +220,36 @@ const WalletScreen = (
           createdAt: now,
         }
 
-        // Use BigTangle to enhance wallet data with additional information
-        let additionalAddresses = [walletInfo.address]
-        let additionalPublicKeys = [walletInfo.publicKey]
-        let additionalEthAddresses = [walletInfo.ethAddress || '']
-
-        // If BigTangle supports derivation methods, use them to generate more addresses
-        if (
-          bigtangle.deriveAddress &&
-          typeof bigtangle.deriveAddress === 'function'
-        ) {
-          try {
-            // Derive additional addresses using BigTangle (example implementation)
-            const derivedAddress = await bigtangle.deriveAddress(
-              walletInfo.publicKey,
-              1,
-            )
-            if (
-              derivedAddress &&
-              !additionalAddresses.includes(derivedAddress)
-            ) {
-              additionalAddresses.push(derivedAddress)
-            }
-          } catch (e) {
-            console.log('Could not derive additional addresses:', e)
-            // Continue with just the original address
-          }
-        }
-
+        // Prepare wallet data for storage
         const newWalletData: WalletData = {
           id,
-          addresses: additionalAddresses,
-          publickeys: additionalPublicKeys,
-          ethaddresses: additionalEthAddresses,
-          encrypted: false,
+          addresses: [newHDWallet.wallet.address],
+          publickeys: [], // Could extract from the private key if needed
+          ethaddresses: [], // Add ETH addresses if needed
+          encrypted: password && password.length > 0,
           checkAddress: true,
           keys: [
             {
-              address: walletInfo.address,
-              publicKey: walletInfo.publicKey,
-              privateKey: walletInfo.privateKey,
+              address: newHDWallet.wallet.address,
+              publicKey: '', // Could extract from the private key if needed
+              privateKey: newHDWallet.wallet.privateKey,
             },
           ],
         }
 
+        // For web, we need to encrypt differently since we can't use the native encryption directly
+        // But we can still encrypt the HDWallet before storing
+        let webFileContent: string
+        if (password && password.length > 0) {
+          // Encrypt the wallet file using the hdwallet module
+          webFileContent = await saveKeyToFile(newHDWallet, password)
+        } else {
+          // Save as plain text if no encryption is needed
+          webFileContent = JSON.stringify(newWalletData)
+        }
+
         // On web, save to localStorage
-        localStorage.setItem(fileName, JSON.stringify(newWalletData))
+        localStorage.setItem(fileName, webFileContent)
 
         // Add the new wallet file to the list
         setWalletFiles(prev => [...prev, newWalletFile])
@@ -510,54 +275,34 @@ const WalletScreen = (
           createdAt: now,
         }
 
-        // Use BigTangle to enhance wallet data with additional information
-        let additionalAddresses = [walletInfo.address]
-        let additionalPublicKeys = [walletInfo.publicKey]
-        let additionalEthAddresses = [walletInfo.ethAddress || '']
-
-        // If BigTangle supports derivation methods, use them to generate more addresses
-        if (
-          bigtangle.deriveAddress &&
-          typeof bigtangle.deriveAddress === 'function'
-        ) {
-          try {
-            // Derive additional addresses using BigTangle (example implementation)
-            const derivedAddress = await bigtangle.deriveAddress(
-              walletInfo.publicKey,
-              1,
-            )
-            if (
-              derivedAddress &&
-              !additionalAddresses.includes(derivedAddress)
-            ) {
-              additionalAddresses.push(derivedAddress)
-            }
-          } catch (e) {
-            console.log('Could not derive additional addresses:', e)
-            // Continue with just the original address
-          }
-        }
-
+        // Prepare wallet data for storage
         const newWalletData: WalletData = {
           id,
-          addresses: additionalAddresses,
-          publickeys: additionalPublicKeys,
-          ethaddresses: additionalEthAddresses,
+          addresses: [newHDWallet.wallet.address],
+          publickeys: [], // Could extract from the private key if needed
+          ethaddresses: [], // Add ETH addresses if needed
           encrypted: false,
           checkAddress: true,
           keys: [
             {
-              address: walletInfo.address,
-              publicKey: walletInfo.publicKey,
-              privateKey: walletInfo.privateKey,
+              address: newHDWallet.wallet.address,
+              publicKey: '', // Could extract from the private key if needed
+              privateKey: newHDWallet.wallet.privateKey,
             },
           ],
         }
 
-        await FileSystem.writeAsStringAsync(
-          filePath,
-          JSON.stringify(newWalletData),
-        )
+        // Check if we need to encrypt the wallet
+        let fileContent: string
+        if (password && password.length > 0) {
+          // Encrypt the wallet file using the hdwallet module
+          fileContent = await saveKeyToFile(newHDWallet, password)
+        } else {
+          // Save as plain text if no encryption is needed
+          fileContent = JSON.stringify(newWalletData)
+        }
+
+        await FileSystem.writeAsStringAsync(filePath, fileContent)
 
         // Add the new wallet file to the list
         setWalletFiles(prev => [...prev, newWalletFile])
@@ -639,44 +384,75 @@ const WalletScreen = (
     }
 
     if (addKeyMode) {
-      // We're in add key mode
+      // We're in add key mode - load the encrypted wallet, add a new key, then save it back encrypted
       try {
+        // Load the encrypted wallet file
         const fileContent = await FileSystem.readAsStringAsync(walletFile.path)
-        // Decrypt the content
-        const decryptedContent = await decryptData(fileContent, password)
-        if (decryptedContent === null) {
+
+        // Try to load with the provided password using hdwallet
+        let walletFileData: HDWalletFile
+        try {
+          walletFileData = await loadWallet(fileContent, password)
+        } catch (e) {
+          console.error('Error loading wallet with provided password:', e)
           Alert.alert('Error', 'Failed to decrypt wallet. Invalid password.')
           return
         }
 
-        let walletData
-        try {
-          walletData = JSON.parse(decryptedContent)
-        } catch (e) {
-          Alert.alert('Error', 'Invalid wallet format')
-          return
+        // Create a new wallet to add the key to
+        const newHDWallet = await createWallet()
+
+        // For now, we'll just add the new wallet's data to the current wallet
+        // In a real scenario, we'd want to update the existing wallet file to include both wallets
+
+        // Since we're not supporting multiple keys in the same wallet file with the hdwallet module,
+        // we'll instead create a new wallet file for the new key
+        const id = Math.random().toString(36).substring(2, 10)
+        const now = new Date()
+        const fileName = `wallet_${now.getTime()}.json`
+        const documentsDir = (FileSystem as any).documentDirectory
+        if (!documentsDir) {
+          throw new Error('Documents directory not available')
+        }
+        const filePath = `${documentsDir}${fileName}`
+
+        const newWalletFile: WalletFile = {
+          id,
+          name: fileName,
+          path: filePath,
+          dowloadURL: filePath,
+          createdAt: now,
         }
 
-        // Add a new key (in a real implementation, you would generate a proper key)
-        const newKey = {
-          address: `new_address_${Date.now()}`,
-          publicKey: `new_public_key_${Date.now()}`,
-          privateKey: `new_private_key_${Date.now()}`,
+        // Prepare wallet data for storage
+        const newWalletData: WalletData = {
+          id,
+          addresses: [newHDWallet.wallet.address],
+          publickeys: [], // Could extract from the private key if needed
+          ethaddresses: [], // Add ETH addresses if needed
+          encrypted: password && password.length > 0,
+          checkAddress: true,
+          keys: [
+            {
+              address: newHDWallet.wallet.address,
+              publicKey: '', // Could extract from the private key if needed
+              privateKey: newHDWallet.wallet.privateKey,
+            },
+          ],
         }
 
-        if (!walletData.keys) {
-          walletData.keys = []
+        // Encrypt the new wallet file using the same password
+        let newFileContent: string
+        if (password && password.length > 0) {
+          newFileContent = await saveKeyToFile(newHDWallet, password)
+        } else {
+          newFileContent = JSON.stringify(newWalletData)
         }
-        walletData.keys.push(newKey)
 
-        // Encrypt the updated content
-        const encryptedContent = await encryptData(
-          JSON.stringify(walletData),
-          password,
-        )
+        await FileSystem.writeAsStringAsync(filePath, newFileContent)
 
-        // Write the encrypted content back to the file
-        await FileSystem.writeAsStringAsync(walletFile.path, encryptedContent)
+        // Add the new wallet file to the list
+        setWalletFiles(prev => [...prev, newWalletFile])
 
         // Clear the addKeyMode
         setAddKeyMode(false)
@@ -684,15 +460,12 @@ const WalletScreen = (
         setSelectedWalletId(null)
         setPassword('')
 
-        // Reload the wallet files to reflect the changes
-        loadWalletFiles()
-
-        Alert.alert('Success', 'New key added to wallet')
+        Alert.alert('Success', 'New key added as a separate wallet')
       } catch (error) {
-        console.error('Error adding key to encrypted wallet:', error)
+        console.error('Error adding key to wallet:', error)
         Alert.alert(
           'Error',
-          'Failed to add key to encrypted wallet: ' + (error as Error).message,
+          'Failed to add key to wallet: ' + (error as Error).message,
         )
       }
     } else {
@@ -716,40 +489,72 @@ const WalletScreen = (
     }
 
     try {
-      let fileContent: string
+      let originalFileContent: string
 
       if (isWeb) {
         // On web, read from localStorage
-        fileContent = localStorage.getItem(walletFile.path) || '{}'
+        originalFileContent = localStorage.getItem(walletFile.path) || '{}'
       } else {
         // Native behavior - read the current wallet file
-        fileContent = await FileSystem.readAsStringAsync(walletFile.path)
+        originalFileContent = await FileSystem.readAsStringAsync(
+          walletFile.path,
+        )
       }
 
-      // Encrypt the content
-      const encryptedContent = await encryptData(fileContent, password)
+      // First try to load the existing wallet using our HDWallet functions
+      let hdWallet: HDWalletFile
+      try {
+        // Try loading without a password first (assuming it's unencrypted)
+        hdWallet = await loadWallet(originalFileContent, '')
+      } catch {
+        // If that fails, it might be a traditional JSON wallet, so we'll try to handle it
+        try {
+          // Try parsing as traditional JSON format
+          const parsedContent = JSON.parse(originalFileContent)
+
+          // If it contains addresses, it's likely a traditional format
+          if (
+            parsedContent.addresses &&
+            Array.isArray(parsedContent.addresses) &&
+            parsedContent.addresses.length > 0
+          ) {
+            // Create an HDWallet from this traditional format
+            const address = parsedContent.addresses[0]
+            const privateKey =
+              parsedContent.keys && parsedContent.keys[0]
+                ? parsedContent.keys[0].privateKey
+                : ''
+
+            hdWallet = {
+              wallet: {
+                address: address,
+                privateKey: privateKey,
+              },
+              credentials: {
+                url: 'https://wallet.bigt.ai',
+                user: address + '@bigt.ai',
+                password: password, // This is a temporary password for credentials
+              },
+            }
+          } else {
+            throw new Error('Invalid wallet format')
+          }
+        } catch (e) {
+          console.error('Error parsing traditional wallet format:', e)
+          throw new Error('Could not process wallet file for encryption')
+        }
+      }
+
+      // Encrypt the wallet using the hdwallet module
+      const encryptedContent = await saveKeyToFile(hdWallet, password)
 
       if (isWeb) {
-        // On web, save to localStorage
+        // On web, save the encrypted content to localStorage
         localStorage.setItem(walletFile.path, encryptedContent)
       } else {
         // Native behavior - write the encrypted content back to the file
         await FileSystem.writeAsStringAsync(walletFile.path, encryptedContent)
       }
-
-      // Update the wallet file list to reflect it's now encrypted
-      setWalletFiles(prev =>
-        prev.map(wf =>
-          wf.id === walletFile.id
-            ? {
-                ...wf,
-                name: wf.name.endsWith('.encrypted')
-                  ? wf.name
-                  : `${wf.name}.encrypted`,
-              }
-            : wf,
-        ),
-      )
 
       setIsEncrypted(false) // Return to non-encrypted view
       setPassword('')
@@ -816,77 +621,100 @@ const WalletScreen = (
       }
 
       // If not encrypted, process directly
-      walletData = JSON.parse(contentToUse)
+      // Create a new HD wallet using our module
+      const newHDWallet = await createWallet()
 
-      // Get the BigTangle instance and generate a new key pair
-      const bigtangle = await getBigTangleInstance()
-      const newKeyPair = await bigtangle.generateKeyPair()
-
-      // Use additional BigTangle features for key verification
-      if (
-        bigtangle.validateAddress &&
-        typeof bigtangle.validateAddress === 'function'
-      ) {
-        const isValid = await bigtangle.validateAddress(newKeyPair.address)
-        if (!isValid) {
-          throw new Error('Generated key address is invalid')
-        }
-      }
-
-      // If BigTangle supports signing, we can test the new key
-      if (
-        bigtangle.signMessage &&
-        typeof bigtangle.signMessage === 'function'
-      ) {
-        // Create a test signature to verify key functionality
-        const testMessage = 'wallet-verification-' + Date.now()
-        const signature = await bigtangle.signMessage(
-          testMessage,
-          newKeyPair.privateKey,
-        )
-
-        // Verify the signature if the library supports it
-        if (
-          bigtangle.verifySignature &&
-          typeof bigtangle.verifySignature === 'function'
-        ) {
-          const isVerified = await bigtangle.verifySignature(
-            testMessage,
-            signature,
-            newKeyPair.publicKey,
-          )
-          if (!isVerified) {
-            throw new Error('Key pair signature verification failed')
-          }
-        }
-      }
-
-      const newKey = {
-        address: newKeyPair.address,
-        publicKey: newKeyPair.publicKey,
-        privateKey: newKeyPair.privateKey,
-      }
-
-      if (!walletData.keys) {
-        walletData.keys = []
-      }
-      walletData.keys.push(newKey)
+      // Since we're not designed to add multiple keys to the same wallet file with hdwallet module,
+      // we'll create a new wallet file for the new key
+      const id = Math.random().toString(36).substring(2, 10)
+      const now = new Date()
+      const fileName = `wallet_${now.getTime()}.json`
 
       if (isWeb) {
+        // For web, path can be just the name
+        const newWebWalletFile: WalletFile = {
+          id,
+          name: fileName,
+          path: fileName,
+          dowloadURL: fileName,
+          createdAt: now,
+        }
+
+        // Prepare wallet data for storage
+        const newWalletData: WalletData = {
+          id,
+          addresses: [newHDWallet.wallet.address],
+          publickeys: [],
+          ethaddresses: [],
+          encrypted: false,
+          checkAddress: true,
+          keys: [
+            {
+              address: newHDWallet.wallet.address,
+              publicKey: '',
+              privateKey: newHDWallet.wallet.privateKey,
+            },
+          ],
+        }
+
         // On web, save to localStorage
-        localStorage.setItem(walletFile.path, JSON.stringify(walletData))
-      } else {
-        // Native behavior - write the updated content back to the file
-        await FileSystem.writeAsStringAsync(
-          walletFile.path,
-          JSON.stringify(walletData),
+        localStorage.setItem(fileName, JSON.stringify(newWalletData))
+
+        // Add the new wallet file to the list
+        setWalletFiles(prev => [...prev, newWebWalletFile])
+
+        Alert.alert(
+          'Success',
+          'New wallet with key created successfully (stored in browser)',
         )
+      } else {
+        // Native behavior
+        const documentsDir = (FileSystem as any).documentDirectory
+        if (!documentsDir) {
+          throw new Error('Documents directory not available')
+        }
+        const filePath = `${documentsDir}${fileName}`
+
+        const newNativeWalletFile: WalletFile = {
+          id,
+          name: fileName,
+          path: filePath,
+          dowloadURL: filePath,
+          createdAt: now,
+        }
+
+        // Prepare wallet data for storage
+        const newWalletData: WalletData = {
+          id,
+          addresses: [newHDWallet.wallet.address],
+          publickeys: [],
+          ethaddresses: [],
+          encrypted: false,
+          checkAddress: true,
+          keys: [
+            {
+              address: newHDWallet.wallet.address,
+              publicKey: '',
+              privateKey: newHDWallet.wallet.privateKey,
+            },
+          ],
+        }
+
+        await FileSystem.writeAsStringAsync(
+          filePath,
+          JSON.stringify(newWalletData),
+        )
+
+        // Add the new wallet file to the list
+        setWalletFiles(prev => [...prev, newNativeWalletFile])
+
+        Alert.alert('Success', 'New wallet with key created successfully')
       }
 
       // Reload the wallet files to reflect the changes
       loadWalletFiles()
 
-      Alert.alert('Success', 'New key added to wallet')
+      Alert.alert('Success', 'New key added as separate wallet')
     } catch (error) {
       console.error('Error adding key to wallet:', error)
       Alert.alert(
