@@ -244,10 +244,28 @@ export async function saveKeyToFile(
 
   const KeyCrypterScrypt = importKeyCrypter()
   const raw = JSON.stringify(serialized, null, 2)
+
+  // Convert string to Uint8Array for encryption
+  const encoder = new TextEncoder()
+  const plainBytes = encoder.encode(raw)
+
   const keyCrypter = new KeyCrypterScrypt()
   const key = await keyCrypter.deriveKey(_password)
-  const data = await keyCrypter.encrypt(raw, key)
-  return data
+  const encryptedData = await keyCrypter.encrypt(plainBytes, key)
+
+  // Serialize the EncryptedData object to a JSON-safe format
+  // We need to save: salt (from scryptParameters), iv, and encryptedBytes
+  const output = {
+    salt: bytesToHex(keyCrypter.scryptParameters.salt),
+    iv: bytesToHex(encryptedData.initialisationVector),
+    data: bytesToHex(encryptedData.encryptedBytes),
+    // Save scrypt params for decryption
+    N: keyCrypter.scryptParameters.N,
+    r: keyCrypter.scryptParameters.r,
+    p: keyCrypter.scryptParameters.p,
+  }
+
+  return JSON.stringify(output, null, 2)
 }
 
 export async function loadWallet(
@@ -256,9 +274,33 @@ export async function loadWallet(
 ): Promise<WalletFile> {
   const KeyCrypterScrypt = importKeyCrypter()
 
-  const keyCrypter = new KeyCrypterScrypt()
+  // Parse the encrypted file format
+  const encrypted = JSON.parse(fileData)
+
+  // Reconstruct scrypt parameters with the saved salt
+  const keyCrypter = new KeyCrypterScrypt({
+    salt: hexToBytes(encrypted.salt),
+    N: encrypted.N,
+    r: encrypted.r,
+    p: encrypted.p,
+  })
+
+  // Derive the key using the same parameters
   const tmpkey = await keyCrypter.deriveKey(_password)
-  const raw = await keyCrypter.decrypt(fileData, tmpkey)
+
+  // Reconstruct the EncryptedData object
+  const encryptedData = {
+    initialisationVector: hexToBytes(encrypted.iv),
+    encryptedBytes: hexToBytes(encrypted.data),
+  }
+
+  // Decrypt the data
+  const decryptedBytes = await keyCrypter.decrypt(encryptedData, tmpkey)
+
+  // Convert Uint8Array back to string
+  const decoder = new TextDecoder()
+  const raw = decoder.decode(decryptedBytes)
+
   const parsed: SerializedWallet = JSON.parse(raw)
 
   if (!parsed.keys?.length) {

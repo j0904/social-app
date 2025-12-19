@@ -93,4 +93,5 @@ export const router = new Router<AllNavigatableRoutes>({
   Bookmarks: '/saved',
   Wallet: '/wallet',
   WalletHome: '/wallet/home',
+  WalletKeys: '/wallet/keys',
 })

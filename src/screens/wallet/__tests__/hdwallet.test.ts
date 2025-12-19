@@ -138,28 +138,21 @@ describe('HDWallet', () => {
     })
 
     it('should handle wallet files with different key structures', async () => {
-      const walletFile = await createWallet()
-      const testWallet = {
-        keys: [
-          {
-            address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-            privateKey: '5Kb8kLf9zgWQnogidDA76MzPL6TsZZY36hWXMssSzNydYXYB9KF',
-          },
-        ],
-        credentials: {
-          url: 'https://wallet.test.ai',
-          user: 'user@test.ai',
-          password: 'testpassword',
-        },
-      }
+      // Create a wallet and save it with encryption
+      const originalWallet = await createWallet()
+      const password = 'testpassword123'
 
-      const serializedData = JSON.stringify(testWallet)
-      const loadedWallet = await loadWallet(serializedData, 'password')
+      // Encrypt the wallet
+      const encryptedData = await saveKeyToFile(originalWallet, password)
 
-      // Note: Due to mock behavior, the address might not match the hardcoded test value
-      // The important check is that private key is preserved
-      expect(loadedWallet.wallet.privateKey).toBe(testWallet.keys[0].privateKey)
-      expect(loadedWallet.credentials.url).toBe(testWallet.credentials.url)
+      // Load it back with the same password
+      const loadedWallet = await loadWallet(encryptedData, password)
+
+      // Verify the wallet was loaded correctly
+      expect(loadedWallet.wallet.privateKey).toBe(
+        originalWallet.wallet.privateKey,
+      )
+      expect(loadedWallet.credentials.url).toBe(originalWallet.credentials.url)
       expect(loadedWallet.wallet.address).toEqual(expect.any(String))
     })
   })
