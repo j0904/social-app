@@ -321,7 +321,12 @@
       "\\.[jt]sx?$": "babel-jest"
     },
     "moduleNameMapper": {
-      "^bigtangle-ts$": "<rootDir>/node_modules/bigtangle-ts/dist/index.js"
+      "^bigtangle-ts$": "<rootDir>/node_modules/bigtangle-ts/dist/index.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/ECKey\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/ECKey.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/Address\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/Address.js",
+      "^bigtangle-ts/dist/net/bigtangle/params/TestParams\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/params/TestParams.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/Utils\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/Utils.js",
+      "^bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@discord|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match|bigtangle-ts)"
