@@ -29,19 +29,14 @@ describe('Functional test for circular dependency fix', () => {
     expect(true).toBe(true)
   })
 
-  it('should verify the hdwallet.ts code structure is correct', () => {
-    const hdwalletPath = path.join(__dirname, '../screens/wallet/hdwallet.ts')
-    const content = readFileSync(hdwalletPath, 'utf8')
+  it('should verify the WalletHelper.ts code structure is correct', () => {
+    const walletHelperPath = path.join(
+      __dirname,
+      '../screens/wallet/WalletHelper.ts',
+    )
+    const content = readFileSync(walletHelperPath, 'utf8')
 
-    // Verify the key aspects of our fix
-    expect(
-      content.includes(
-        'Use dynamic imports to avoid circular dependency initialization issues',
-      ),
-    ).toBe(true)
-    expect(content.includes("await import('bigtangle-ts')")).toBe(true)
-
-    // Verify that static imports from bigtangle-ts are removed
+    // Verify that static imports from bigtangle-ts are removed from top level
     const hasStaticImport =
       /import \{.*\} from 'bigtangle-ts'/.test(content) ||
       /from 'bigtangle-ts'/.test(content)
@@ -51,6 +46,13 @@ describe('Functional test for circular dependency fix', () => {
     expect(content.includes('export async function createWallet')).toBe(true)
     expect(content.includes('export async function saveKeyToFile')).toBe(true)
     expect(content.includes('export async function loadWallet')).toBe(true)
+    expect(content.includes('export async function importPrivateKey')).toBe(
+      true,
+    )
+
+    // Verify bigtangle-ts is imported using require() within functions for Jest compatibility
+    expect(content.includes('require(')).toBe(true)
+    expect(content.includes('bigtangle-ts')).toBe(true)
   })
 
   it('should explain how the fix resolves the circular dependency', () => {

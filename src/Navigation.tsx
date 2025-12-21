@@ -128,6 +128,7 @@ import {Wizard} from '#/screens/StarterPack/Wizard'
 import TopicScreen from '#/screens/Topic'
 import {VideoFeed} from '#/screens/VideoFeed'
 import {KeysScreen} from '#/screens/wallet/Keys'
+import {PayScreen} from '#/screens/wallet/Pay'
 import {WalletHomeScreen} from '#/screens/wallet/WalletHome'
 import {type Theme, useTheme} from '#/alf'
 import {
@@ -620,6 +621,11 @@ function commonScreens(Stack: typeof Flat, unreadCountLabel?: string) {
         name="WalletKeys"
         getComponent={() => KeysScreen}
         options={{title: title(msg`Manage Keys`)}}
+      />
+      <Stack.Screen
+        name="WalletPay"
+        getComponent={() => PayScreen}
+        options={{title: title(msg`Send Payment`)}}
       />
     </>
   )

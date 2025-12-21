@@ -1,7 +1,7 @@
-import {randomBytes} from '@noble/ciphers/webcrypto'
+import {secp256k1} from '@noble/curves/secp256k1'
 import {ripemd160} from '@noble/hashes/ripemd160'
 import {sha256} from '@noble/hashes/sha256'
-import * as secp256k1 from 'secp256k1'
+import {randomBytes} from '@noble/hashes/utils'
 
 export interface CredentialEntry {
   url: string
@@ -23,6 +23,9 @@ export interface SerializedWallet {
   keys: Array<{address: string; privateKey: string}>
   credentials: CredentialEntry
 }
+
+// Default context root for bigtangle network
+const DEFAULT_CONTEXT_ROOT = 'http://localhost:8088/'
 
 // Base58 alphabet (same as Bitcoin)
 const BASE58_ALPHABET =
@@ -165,12 +168,11 @@ const TEST_PARAMS = {
  * Generate a new EC key pair
  */
 function createNewKey(): {privateKey: Uint8Array; publicKey: Uint8Array} {
-  const privateKey = new Uint8Array(32)
-  crypto.getRandomValues(privateKey)
+  const privateKey = randomBytes(32)
 
   // Ensure private key is valid (non-zero, less than curve order)
-  // This is a simplified check; secp256k1 will reject invalid keys
-  const publicKey = secp256k1.publicKeyCreate(privateKey, true) // compressed
+  // @noble/curves will reject invalid keys
+  const publicKey = secp256k1.getPublicKey(privateKey, true) // compressed
 
   return {privateKey, publicKey}
 }
@@ -201,8 +203,23 @@ function addressFromPubKeyHash(
  * because it only imports from crypto/, not from core/ where Coin/Block live.
  */
 function importKeyCrypter() {
-  const module = require('bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js')
+  const module = require('../../../../bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js')
   return module.KeyCrypterScrypt
+}
+
+/**
+ * Helper to import bigtangle-ts modules for wallet operations
+ */
+function importBigtangleModules() {
+  const WalletModule = require('../../../../bigtangle-ts/dist/net/bigtangle/wallet/Wallet.js')
+  const ECKeyModule = require('../../../../bigtangle-ts/dist/net/bigtangle/core/ECKey.js')
+  const TestParamsModule = require('../../../../bigtangle-ts/dist/net/bigtangle/params/TestParams.js')
+
+  return {
+    Wallet: WalletModule.Wallet,
+    ECKey: ECKeyModule.ECKey,
+    TestParams: TestParamsModule.TestParams,
+  }
 }
 
 // Use our standalone crypto implementation to avoid bigtangle-ts circular dependencies
@@ -311,7 +328,7 @@ export async function loadWallet(
 
   // Recreate the public key from the stored private key
   const privateKeyBytes = hexToBytes(keyData.privateKey)
-  const publicKey = secp256k1.publicKeyCreate(privateKeyBytes, true) // compressed
+  const publicKey = secp256k1.getPublicKey(privateKeyBytes, true) // compressed
 
   // Recreate address from public key
   const pubKeyHash = getPubKeyHash(publicKey)
@@ -342,4 +359,160 @@ function hexToBytes(hex: string): Uint8Array {
     throw new Error('Invalid hex string')
   }
   return new Uint8Array(matches.map(byte => Number.parseInt(byte, 16)))
+}
+
+/**
+ * Import a wallet from a private key (hex string or WIF format)
+ * @param privateKeyInput - Private key in hex format (64 chars) or WIF format
+ * @returns WalletFile with the imported key
+ */
+export async function importPrivateKey(
+  privateKeyInput: string,
+): Promise<WalletFile> {
+  let privateKeyHex: string
+  let privateKeyBytes: Uint8Array
+
+  // Clean up input - remove spaces and trim
+  const cleanInput = privateKeyInput.trim().replaceAll(/\s+/g, '')
+
+  // Check if it's a WIF (Wallet Import Format) - starts with 5, K, L, c, or 9 (testnet)
+  if (/^[5KLc9][1-9A-HJ-NP-Za-km-z]{50,51}$/.test(cleanInput)) {
+    // Decode WIF
+    try {
+      const decoded = base58CheckDecode(cleanInput)
+      // WIF version: 0x80 for mainnet, 0xef for testnet
+      if (decoded.version !== 0x80 && decoded.version !== 0xef) {
+        throw new Error('Invalid WIF version')
+      }
+      // If compressed (33 bytes with 0x01 suffix), remove the suffix
+      if (decoded.payload.length === 33 && decoded.payload[32] === 0x01) {
+        privateKeyBytes = decoded.payload.slice(0, 32)
+      } else if (decoded.payload.length === 32) {
+        privateKeyBytes = decoded.payload
+      } else {
+        throw new Error('Invalid WIF payload length')
+      }
+      privateKeyHex = bytesToHex(privateKeyBytes)
+    } catch (e) {
+      throw new Error(`Invalid WIF format: ${(e as Error).message}`)
+    }
+  } else if (/^[0-9a-fA-F]{64}$/.test(cleanInput)) {
+    // It's a hex private key
+    privateKeyHex = cleanInput.toLowerCase()
+    privateKeyBytes = hexToBytes(privateKeyHex)
+  } else {
+    throw new Error(
+      'Invalid private key format. Expected 64-character hex string or WIF format.',
+    )
+  }
+
+  // Validate the private key by generating the public key
+  let publicKey: Uint8Array
+  try {
+    publicKey = secp256k1.getPublicKey(privateKeyBytes, true) // compressed
+  } catch (error_) {
+    // Log the error for debugging purposes
+    console.error('secp256k1 error:', error_)
+    throw new Error('Invalid private key: failed to generate public key')
+  }
+
+  // Generate address from public key
+  const pubKeyHash = getPubKeyHash(publicKey)
+  const address = addressFromPubKeyHash(pubKeyHash)
+
+  const wallet: Key = {
+    address,
+    privateKey: privateKeyHex,
+  }
+
+  const credentials: CredentialEntry = {
+    url: 'https://wallet.bigt.ai',
+    user: address + '@bigt.ai',
+    password: bytesToHex(randomBytes(32)),
+  }
+
+  return {wallet, credentials}
+}
+
+/**
+ * Create a bigtangle-ts Wallet instance from a WalletFile
+ * This creates a fully functional Wallet that can interact with the blockchain
+ *
+ * @param walletFile - The wallet file containing the private key
+ * @param contextRoot - The server URL (default: http://localhost:8088/)
+ * @returns A bigtangle-ts Wallet instance
+ *
+ * @example
+ * ```typescript
+ * const walletFile = await createWallet();
+ * const btWallet = await createBigtangleWallet(walletFile);
+ * // Now you can use btWallet to make payments, check balances, etc.
+ * ```
+ */
+export async function createBigtangleWallet(
+  walletFile: WalletFile,
+  contextRoot: string = DEFAULT_CONTEXT_ROOT,
+): Promise<any> {
+  const {Wallet, ECKey, TestParams} = importBigtangleModules()
+
+  // Get network parameters (TestNet)
+  const networkParameters = TestParams.get()
+
+  // Create ECKey from private key hex string
+  const ecKey = ECKey.fromPrivateString(walletFile.wallet.privateKey)
+  const keys = [ecKey]
+
+  // Create wallet using Wallet.fromKeysURL
+  const btWallet = await Wallet.fromKeysURL(
+    networkParameters,
+    keys,
+    contextRoot,
+  )
+
+  return btWallet
+}
+
+/**
+ * Create a bigtangle-ts Wallet instance directly from a private key string
+ *
+ * @param privateKey - Private key in hex format (64 chars)
+ * @param contextRoot - The server URL (default: http://localhost:8088/)
+ * @returns A bigtangle-ts Wallet instance
+ */
+export async function createBigtangleWalletFromPrivateKey(
+  privateKey: string,
+  contextRoot: string = DEFAULT_CONTEXT_ROOT,
+): Promise<any> {
+  const {Wallet, ECKey, TestParams} = importBigtangleModules()
+
+  // Get network parameters (TestNet)
+  const networkParameters = TestParams.get()
+
+  // Create ECKey from private key hex string
+  const ecKey = ECKey.fromPrivateString(privateKey)
+  const keys = [ecKey]
+
+  // Create wallet using Wallet.fromKeysURL
+  const btWallet = await Wallet.fromKeysURL(
+    networkParameters,
+    keys,
+    contextRoot,
+  )
+
+  return btWallet
+}
+
+/**
+ * Get the default context root URL for bigtangle network
+ */
+export function getDefaultContextRoot(): string {
+  return DEFAULT_CONTEXT_ROOT
+}
+
+/**
+ * Set a custom context root URL (for production use)
+ * @param url - The server URL
+ */
+export function setContextRoot(url: string): string {
+  return url
 }

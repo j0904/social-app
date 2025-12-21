@@ -1,4 +1,4 @@
-import {createWallet, loadWallet, saveKeyToFile} from '../hdwallet'
+import {createWallet, loadWallet, saveKeyToFile} from '../WalletHelper'
 
 describe('HDWallet', () => {
   describe('createWallet', () => {

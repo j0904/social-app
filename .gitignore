@@ -126,3 +126,6 @@ bskyweb/static/media/*.jpg
 bskyweb/static/media/*.png
 bigtangle-ts-1.0.0.tgz
 *.tgz
+
+# E2E test screenshots
+screenshot-*.png

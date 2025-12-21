@@ -91,7 +91,7 @@ declare module 'bigtangle-ts/dist/net/bigtangle/core/ECKey.js' {
 }
 
 declare module 'bigtangle-ts/dist/net/bigtangle/core/Address.js' {
-  import {type ECKey} from 'bigtangle-ts/dist/net/bigtangle/core/ECKey.js'
+  import {type ECKey} from '../../../bigtangle-ts/dist/net/bigtangle/core/ECKey.js'
 
   export class Address {
     constructor(...args: any[])

@@ -119,6 +119,31 @@ module.exports = async function (env, argv) {
   config.resolve = config.resolve || {}
   config.resolve.symlinks = false
 
+  // Add bigtangle-ts to the module resolution
+  if (!config.resolve.modules) {
+    config.resolve.modules = ['node_modules']
+  }
+  // Ensure bigtangle-ts can find its dependencies from this project's node_modules
+  config.resolve.modules.push(
+    require('path').resolve(__dirname, 'node_modules'),
+  )
+
+  // Exclude bigtangle-ts's node_modules from being processed
+  // This prevents webpack from trying to process nested dependencies
+  if (!config.module.rules) {
+    config.module.rules = []
+  }
+
+  // Add rule to handle bigtangle-ts files (both dist and node_modules)
+  config.module.rules.unshift({
+    test: /\.m?js$/,
+    include: /bigtangle-ts/,
+    type: 'javascript/auto',
+    resolve: {
+      fullySpecified: false,
+    },
+  })
+
   // Ignore source map errors for problematic packages
   config.ignoreWarnings = [/Failed to parse source map/]
 

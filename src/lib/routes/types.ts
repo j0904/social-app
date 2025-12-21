@@ -90,6 +90,7 @@ export type CommonNavigatorParams = {
   Wallet: undefined
   WalletHome: undefined
   WalletKeys: undefined
+  WalletPay: undefined
 }
 
 export type BottomTabNavigatorParams = CommonNavigatorParams & {

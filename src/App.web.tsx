@@ -48,6 +48,7 @@ import {Provider as ProgressGuideProvider} from '#/state/shell/progress-guide'
 import {Provider as SelectedFeedProvider} from '#/state/shell/selected-feed'
 import {Provider as StarterPackProvider} from '#/state/shell/starter-pack'
 import {Provider as HiddenRepliesProvider} from '#/state/threadgate-hidden-replies'
+import {WalletProvider} from '#/state/wallet'
 import * as Toast from '#/view/com/util/Toast'
 import {Shell} from '#/view/shell/index'
 import {ThemeProvider as Alf} from '#/alf'
@@ -192,23 +193,25 @@ function App() {
     <GeolocationProvider>
       <A11yProvider>
         <SessionProvider>
-          <PrefsStateProvider>
-            <I18nProvider>
-              <ShellStateProvider>
-                <ModalStateProvider>
-                  <DialogStateProvider>
-                    <LightboxStateProvider>
-                      <PortalProvider>
-                        <StarterPackProvider>
-                          <InnerApp />
-                        </StarterPackProvider>
-                      </PortalProvider>
-                    </LightboxStateProvider>
-                  </DialogStateProvider>
-                </ModalStateProvider>
-              </ShellStateProvider>
-            </I18nProvider>
-          </PrefsStateProvider>
+          <WalletProvider>
+            <PrefsStateProvider>
+              <I18nProvider>
+                <ShellStateProvider>
+                  <ModalStateProvider>
+                    <DialogStateProvider>
+                      <LightboxStateProvider>
+                        <PortalProvider>
+                          <StarterPackProvider>
+                            <InnerApp />
+                          </StarterPackProvider>
+                        </PortalProvider>
+                      </LightboxStateProvider>
+                    </DialogStateProvider>
+                  </ModalStateProvider>
+                </ShellStateProvider>
+              </I18nProvider>
+            </PrefsStateProvider>
+          </WalletProvider>
         </SessionProvider>
       </A11yProvider>
     </GeolocationProvider>

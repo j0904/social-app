@@ -15,7 +15,7 @@ describe('Circular Dependency Fix Test', () => {
     // without encountering the "Cannot access 'Coin' before initialization" error
 
     // This will try to import the module without triggering the circular dependency issue
-    const hdwallet = require('../screens/wallet/hdwallet')
+    const hdwallet = require('../screens/wallet/WalletHelper')
     const {createWallet, saveKeyToFile, loadWallet} = hdwallet
 
     // Verify that the functions are properly defined

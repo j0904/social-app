@@ -8,41 +8,44 @@ import fs from 'fs'
 import path from 'path'
 
 describe('Circular Dependency Fix Verification', () => {
-  const hdwalletPath = path.join(__dirname, '../screens/wallet/hdwallet.ts')
+  const walletHelperPath = path.join(
+    __dirname,
+    '../screens/wallet/WalletHelper.ts',
+  )
 
-  it('should have replaced static imports with dynamic imports in hdwallet.ts', () => {
-    const content = fs.readFileSync(hdwalletPath, 'utf8')
+  it('should have replaced static imports with alternative approach in WalletHelper.ts', () => {
+    const content = fs.readFileSync(walletHelperPath, 'utf8')
 
     // Verify that the old static imports are no longer present
     expect(content).not.toMatch(/import {.*} from 'bigtangle-ts'/)
     expect(content).not.toMatch(/from 'bigtangle-ts'/)
 
-    // Verify that dynamic imports are present
-    expect(content).toMatch(/await import\('bigtangle-ts'\)/)
-    expect(content).toMatch(/const bigtangle = await import\('bigtangle-ts'\)/)
+    // In WalletHelper.ts, we use require() instead of dynamic imports for Jest compatibility
+    expect(content).toMatch(/require\('.*bigtangle-ts.*'\)/)
   })
 
-  it('should have made functions async to handle dynamic imports', () => {
-    const content = fs.readFileSync(hdwalletPath, 'utf8')
+  it('should have made functions async where needed in WalletHelper.ts', () => {
+    const content = fs.readFileSync(walletHelperPath, 'utf8')
 
-    // Verify that functions are now async
+    // Verify that functions are async where they need to be
     expect(content).toMatch(/export async function createWallet/)
     expect(content).toMatch(/export async function saveKeyToFile/)
     expect(content).toMatch(/export async function loadWallet/)
+    expect(content).toMatch(/export async function importPrivateKey/)
 
     // Verify that functions return Promise types
     expect(content).toMatch(/Promise<WalletFile>/) // createWallet return type
     expect(content).toMatch(/Promise<string>/) // saveKeyToFile return type
   })
 
-  it('should use dynamic bigtangle-ts imports inside functions', () => {
-    const content = fs.readFileSync(hdwalletPath, 'utf8')
+  it('should use require for bigtangle-ts imports in WalletHelper.ts', () => {
+    const content = fs.readFileSync(walletHelperPath, 'utf8')
 
-    // Check that the functions now use dynamic imports internally
-    expect(content).toMatch(/const bigtangle = await import\('bigtangle-ts'\)/)
-    expect(content).toMatch(/bigtangle\.ECKey\.createNewKey\(\)/)
-    expect(content).toMatch(/bigtangle\.Address\.fromKey/)
-    expect(content).toMatch(/bigtangle\.TestNetParams\.get\(\)/)
+    // Check that the functions use require for bigtangle-ts modules
+    expect(content).toMatch(/require\('.*bigtangle-ts.*KeyCrypterScrypt.*'\)/)
+    expect(content).toMatch(/require\('.*bigtangle-ts.*Wallet.*'\)/)
+    expect(content).toMatch(/require\('.*bigtangle-ts.*ECKey.*'\)/)
+    expect(content).toMatch(/require\('.*bigtangle-ts.*TestParams.*'\)/)
   })
 
   it('should have updated dependent files to handle async functions', () => {

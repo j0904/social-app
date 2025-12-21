@@ -126,7 +126,7 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "bcp-47": "^2.1.0",
     "bcp-47-match": "^2.0.3",
-    "bigtangle-ts": "^1.0.2",
+    "bigtangle-ts": "file:../bigtangle-ts",
     "date-fns": "^2.30.0",
     "email-validator": "^2.0.4",
     "emoji-mart": "^5.5.2",
@@ -243,6 +243,7 @@
     "@types/lodash.isequal": "^4.5.6",
     "@types/lodash.shuffle": "^4.2.7",
     "@types/psl": "^1.1.1",
+    "@types/puppeteer": "^7.0.4",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -281,6 +282,7 @@
     "path-browserify": "^1.0.1",
     "prettier": "^3.6.0",
     "process": "^0.11.10",
+    "puppeteer": "^24.34.0",
     "querystring-es3": "^0.2.1",
     "react-native-dotenv": "^3.4.11",
     "react-refresh": "^0.14.0",
@@ -321,15 +323,15 @@
       "\\.[jt]sx?$": "babel-jest"
     },
     "moduleNameMapper": {
-      "^bigtangle-ts$": "<rootDir>/node_modules/bigtangle-ts/dist/index.js",
-      "^bigtangle-ts/dist/net/bigtangle/core/ECKey\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/ECKey.js",
-      "^bigtangle-ts/dist/net/bigtangle/core/Address\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/Address.js",
-      "^bigtangle-ts/dist/net/bigtangle/params/TestParams\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/params/TestParams.js",
-      "^bigtangle-ts/dist/net/bigtangle/core/Utils\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/core/Utils.js",
-      "^bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt\\.js$": "<rootDir>/node_modules/bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js"
+      "^bigtangle-ts$": "<rootDir>/../bigtangle-ts/dist/index.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/ECKey\\.js$": "<rootDir>/../bigtangle-ts/dist/net/bigtangle/core/ECKey.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/Address\\.js$": "<rootDir>/../bigtangle-ts/dist/net/bigtangle/core/Address.js",
+      "^bigtangle-ts/dist/net/bigtangle/params/TestParams\\.js$": "<rootDir>/../bigtangle-ts/dist/net/bigtangle/params/TestParams.js",
+      "^bigtangle-ts/dist/net/bigtangle/core/Utils\\.js$": "<rootDir>/../bigtangle-ts/dist/net/bigtangle/core/Utils.js",
+      "^bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt\\.js$": "<rootDir>/../bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@discord|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match|bigtangle-ts)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|@discord|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|nanoid|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|normalize-url|react-native-svg|@sentry/.*|sentry-expo|bcp-47-match)"
     ],
     "modulePathIgnorePatterns": [
       "__tests__/.*/__mocks__",

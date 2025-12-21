@@ -13,6 +13,7 @@ import {useLoggedOutViewControls} from '#/state/shell/logged-out'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import {atoms as a} from '#/alf'
 import {Key_Stroke2_Corner2_Rounded as KeyIcon} from '#/components/icons/Key'
+import {PaperPlane_Stroke2_Corner0_Rounded as SendIcon} from '#/components/icons/PaperPlane'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
 
@@ -75,6 +76,12 @@ export function WalletHomeScreen(_props: Props) {
             <SettingsList.ItemIcon icon={KeyIcon} />
             <SettingsList.ItemText>
               <Trans>Manage Keys</Trans>
+            </SettingsList.ItemText>
+          </SettingsList.LinkItem>
+          <SettingsList.LinkItem to="/wallet/pay" label={_(msg`Send Payment`)}>
+            <SettingsList.ItemIcon icon={SendIcon} />
+            <SettingsList.ItemText>
+              <Trans>Send Payment</Trans>
             </SettingsList.ItemText>
           </SettingsList.LinkItem>
         </SettingsList.Container>

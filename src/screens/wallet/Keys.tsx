@@ -8,6 +8,7 @@ import {type NativeStackScreenProps} from '@react-navigation/native-stack'
 
 import {type CommonNavigatorParams} from '#/lib/routes/types'
 import {isWeb} from '#/platform/detection'
+import {useWallet} from '#/state/wallet'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import {atoms as a, useTheme} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
@@ -15,18 +16,26 @@ import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
 import {
   createWallet,
+  importPrivateKey,
   loadWallet,
   saveKeyToFile,
   type WalletFile as HDWalletFile,
-} from './hdwallet'
+} from './WalletHelper'
 
 type CreateWalletStep = 'idle' | 'created' | 'enterPassword' | 'saving' | 'done'
+type ImportKeyStep = 'idle' | 'enterKey' | 'enterPassword' | 'saving' | 'done'
 
 export function KeysScreen(
   _props: Readonly<NativeStackScreenProps<CommonNavigatorParams, 'WalletKeys'>>,
 ) {
   const theme = useTheme()
   const {_} = useLingui()
+
+  // Wallet state management - secure storage
+  const {publicInfo, isUnlocked, storeEncryptedWallet, lockWallet} = useWallet()
+
+  // Show existing wallet info if available
+  const hasExistingWallet = !!publicInfo?.hasEncryptedWallet
 
   // State for wallet creation flow
   const [step, setStep] = useState<CreateWalletStep>('idle')
@@ -41,6 +50,13 @@ export function KeysScreen(
   const [loadMode, setLoadMode] = useState(false)
   const [loadPassword, setLoadPassword] = useState('')
   const [loadedWallet, setLoadedWallet] = useState<HDWalletFile | null>(null)
+
+  // State for import private key flow
+  const [importStep, setImportStep] = useState<ImportKeyStep>('idle')
+  const [privateKeyInput, setPrivateKeyInput] = useState('')
+  const [importedWallet, setImportedWallet] = useState<HDWalletFile | null>(
+    null,
+  )
 
   // Create a new wallet
   const handleCreateWallet = useCallback(async () => {
@@ -98,6 +114,14 @@ export function KeysScreen(
     try {
       // Encrypt the wallet with the password
       const encryptedContent = await saveKeyToFile(newWallet, password)
+
+      // Store encrypted wallet in secure state for app usage
+      // Also store password in memory for session use (cleared on background/lock)
+      await storeEncryptedWallet(
+        encryptedContent,
+        newWallet.wallet.address,
+        password,
+      )
 
       const fileName = `wallet_${newWallet.wallet.address.slice(0, 8)}_${Date.now()}.json`
 
@@ -215,7 +239,7 @@ export function KeysScreen(
     } finally {
       setIsLoading(false)
     }
-  }, [newWallet, password, confirmPassword])
+  }, [newWallet, password, confirmPassword, storeEncryptedWallet])
 
   // Reset to start over
   const handleReset = useCallback(() => {
@@ -228,7 +252,165 @@ export function KeysScreen(
     setLoadMode(false)
     setLoadPassword('')
     setLoadedWallet(null)
+    setImportStep('idle')
+    setPrivateKeyInput('')
+    setImportedWallet(null)
   }, [])
+
+  // Start import private key flow
+  const handleStartImport = useCallback(() => {
+    setImportStep('enterKey')
+    setErrorMessage('')
+  }, [])
+
+  // Validate and import private key
+  const handleImportKey = useCallback(async () => {
+    if (!privateKeyInput.trim()) {
+      setErrorMessage('Please enter a private key')
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage('')
+
+    try {
+      const wallet = await importPrivateKey(privateKeyInput)
+      setImportedWallet(wallet)
+      setWalletAddress(wallet.wallet.address)
+      setImportStep('enterPassword')
+    } catch (error) {
+      console.error('Error importing private key:', error)
+      setErrorMessage(`Failed to import key: ${(error as Error).message}`)
+      Alert.alert('Error', `Failed to import key: ${(error as Error).message}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [privateKeyInput])
+
+  // Save imported wallet with password
+  const handleSaveImportedWallet = useCallback(async () => {
+    if (!importedWallet) {
+      setErrorMessage('No wallet to save')
+      return
+    }
+
+    if (!password) {
+      setErrorMessage('Please enter a password')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match')
+      return
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters')
+      return
+    }
+
+    setIsLoading(true)
+    setErrorMessage('')
+    setImportStep('saving')
+
+    try {
+      // Encrypt the wallet with the password
+      const encryptedContent = await saveKeyToFile(importedWallet, password)
+
+      // Store encrypted wallet in secure state
+      await storeEncryptedWallet(
+        encryptedContent,
+        importedWallet.wallet.address,
+        password,
+      )
+
+      const fileName = `wallet_${importedWallet.wallet.address.slice(0, 8)}_${Date.now()}.json`
+
+      if (isWeb) {
+        const blob = new Blob([encryptedContent], {type: 'application/json'})
+
+        if ('showSaveFilePicker' in globalThis) {
+          try {
+            const handle = await (globalThis as any).showSaveFilePicker({
+              suggestedName: fileName,
+              types: [
+                {
+                  description: 'JSON Wallet File',
+                  accept: {'application/json': ['.json']},
+                },
+              ],
+            })
+            const writable = await handle.createWritable()
+            await writable.write(blob)
+            await writable.close()
+
+            setImportStep('done')
+            Alert.alert('Success', 'Imported wallet saved successfully!')
+          } catch (pickerError: any) {
+            if (pickerError.name === 'AbortError') {
+              setImportStep('enterPassword')
+              setErrorMessage('Save cancelled. Please try again.')
+              setIsLoading(false)
+              return
+            }
+            throw pickerError
+          }
+        } else {
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = fileName
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          URL.revokeObjectURL(url)
+
+          setImportStep('done')
+          Alert.alert('Success', 'Imported wallet saved successfully!')
+        }
+      } else {
+        const documentsDir = FileSystem.documentDirectory
+        if (!documentsDir) {
+          throw new Error('Documents directory not available')
+        }
+
+        const filePath = `${documentsDir}${fileName}`
+        await FileSystem.writeAsStringAsync(filePath, encryptedContent)
+
+        const sharingAvailable = await Sharing.isAvailableAsync()
+        if (sharingAvailable) {
+          Alert.alert(
+            'Wallet Imported',
+            'Your imported wallet is ready. Use the share sheet to save it.',
+            [
+              {
+                text: 'Save Wallet File',
+                onPress: () => {
+                  Sharing.shareAsync(filePath, {
+                    mimeType: 'application/json',
+                    dialogTitle: 'Save your encrypted wallet file',
+                    UTI: 'public.json',
+                  })
+                    .then(() => setImportStep('done'))
+                    .catch(() => setImportStep('done'))
+                },
+              },
+            ],
+          )
+        } else {
+          setImportStep('done')
+          Alert.alert('Wallet Saved', `Imported wallet saved as "${fileName}".`)
+        }
+      }
+    } catch (error) {
+      console.error('Error saving imported wallet:', error)
+      setErrorMessage(`Failed to save wallet: ${(error as Error).message}`)
+      setImportStep('enterPassword')
+      Alert.alert('Error', `Failed to save wallet: ${(error as Error).message}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [importedWallet, password, confirmPassword, storeEncryptedWallet])
 
   // Handle loading existing wallet (web)
   const handleLoadWalletWeb = useCallback(() => {
@@ -270,7 +452,14 @@ export function KeysScreen(
       setLoadedWallet(wallet)
       setWalletAddress(wallet.wallet.address)
 
-      Alert.alert('Success', 'Wallet loaded successfully!')
+      // Store the encrypted wallet in secure state for future use
+      // This allows unlocking without re-loading the file
+      await storeEncryptedWallet(content, wallet.wallet.address)
+
+      // Clear the temporary content
+      delete (globalThis as any).__walletFileContent
+
+      Alert.alert('Success', 'Wallet loaded and stored securely!')
     } catch (error) {
       console.error('Error loading wallet:', error)
       setErrorMessage('Failed to decrypt wallet. Check your password.')
@@ -278,11 +467,77 @@ export function KeysScreen(
     } finally {
       setIsLoading(false)
     }
-  }, [loadPassword])
+  }, [loadPassword, storeEncryptedWallet])
 
   // Render idle state - main menu
   const renderIdleState = () => (
     <>
+      {/* Show existing wallet status if available */}
+      {hasExistingWallet && (
+        <>
+          <View style={[a.px_lg, a.py_md]}>
+            <View
+              style={[
+                a.p_md,
+                a.rounded_sm,
+                a.mb_sm,
+                {backgroundColor: theme.atoms.bg_contrast_25.backgroundColor},
+              ]}>
+              <Text
+                style={[
+                  a.text_sm,
+                  a.mb_xs,
+                  {color: theme.atoms.text_contrast_medium.color},
+                ]}>
+                <Trans>Current Wallet:</Trans>
+              </Text>
+              <Text
+                selectable
+                style={[
+                  a.text_md,
+                  {color: theme.atoms.text.color, fontFamily: 'monospace'},
+                ]}>
+                {publicInfo?.address}
+              </Text>
+              <View style={[a.flex_row, a.align_center, a.mt_sm, a.gap_xs]}>
+                <View
+                  style={[
+                    {
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: isUnlocked
+                        ? theme.palette.positive_500
+                        : theme.palette.contrast_400,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    a.text_xs,
+                    {color: theme.atoms.text_contrast_medium.color},
+                  ]}>
+                  {isUnlocked ? <Trans>Unlocked</Trans> : <Trans>Locked</Trans>}
+                </Text>
+              </View>
+            </View>
+            {isUnlocked && (
+              <Button
+                color="secondary"
+                size="small"
+                label={_(msg`Lock Wallet`)}
+                onPress={lockWallet}
+                style={[a.self_start]}>
+                <ButtonText>
+                  <Trans>Lock Wallet</Trans>
+                </ButtonText>
+              </Button>
+            )}
+          </View>
+          <SettingsList.Divider />
+        </>
+      )}
+
       <View style={[a.pt_lg, a.px_lg, a.pb_md]}>
         <Text style={[a.text_md, a.leading_snug]}>
           <Trans>Create a new wallet or load an existing one.</Trans>
@@ -295,6 +550,15 @@ export function KeysScreen(
         disabled={isLoading}>
         <SettingsList.ItemText>
           <Trans>Create New Wallet</Trans>
+        </SettingsList.ItemText>
+        <SettingsList.Chevron />
+      </SettingsList.PressableItem>
+      <SettingsList.PressableItem
+        onPress={handleStartImport}
+        label={_(msg`Import Private Key`)}
+        disabled={isLoading}>
+        <SettingsList.ItemText>
+          <Trans>Import Private Key</Trans>
         </SettingsList.ItemText>
         <SettingsList.Chevron />
       </SettingsList.PressableItem>
@@ -675,6 +939,303 @@ export function KeysScreen(
     </View>
   )
 
+  // Render import key step - enter private key
+  const renderImportEnterKeyState = () => (
+    <View style={[a.px_lg, a.py_lg]}>
+      <Text
+        style={[
+          a.text_lg,
+          a.font_bold,
+          a.mb_md,
+          {color: theme.atoms.text.color},
+        ]}>
+        <Trans>Import Private Key</Trans>
+      </Text>
+
+      <Text
+        style={[
+          a.text_sm,
+          a.mb_lg,
+          {color: theme.atoms.text_contrast_medium.color},
+        ]}>
+        <Trans>
+          Enter your private key in hex format (64 characters) or WIF format.
+          Your key will be encrypted with a password before saving.
+        </Trans>
+      </Text>
+
+      <View style={[a.mb_lg]}>
+        <Text style={[a.text_sm, a.mb_xs, {color: theme.atoms.text.color}]}>
+          <Trans>Private Key</Trans>
+        </Text>
+        <TextInput
+          accessibilityLabel={_(msg`Private Key`)}
+          accessibilityHint={_(
+            msg`Enter your private key in hex or WIF format`,
+          )}
+          value={privateKeyInput}
+          onChangeText={setPrivateKeyInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          multiline
+          numberOfLines={3}
+          style={[
+            a.px_md,
+            a.py_sm,
+            a.rounded_sm,
+            a.text_md,
+            {
+              borderWidth: 1,
+              borderColor: theme.atoms.border_contrast_low.borderColor,
+              backgroundColor: theme.atoms.bg.backgroundColor,
+              color: theme.atoms.text.color,
+              fontFamily: 'monospace',
+              minHeight: 80,
+            },
+          ]}
+          placeholder={_(msg`Enter private key (hex or WIF)`)}
+          placeholderTextColor={theme.atoms.text_contrast_low.color}
+        />
+      </View>
+
+      {errorMessage ? (
+        <Text style={[a.text_sm, a.mb_md, {color: theme.palette.negative_500}]}>
+          {errorMessage}
+        </Text>
+      ) : null}
+
+      <View style={[a.flex_row, a.gap_sm]}>
+        <Button
+          color="primary"
+          label={_(msg`Import Key`)}
+          onPress={handleImportKey}
+          disabled={isLoading}
+          style={[a.flex_1]}>
+          <ButtonText>
+            {isLoading ? (
+              <Trans>Importing...</Trans>
+            ) : (
+              <Trans>Import Key</Trans>
+            )}
+          </ButtonText>
+        </Button>
+        <Button
+          color="secondary"
+          label={_(msg`Cancel`)}
+          onPress={handleReset}
+          disabled={isLoading}
+          style={[a.flex_1]}>
+          <ButtonText>
+            <Trans>Cancel</Trans>
+          </ButtonText>
+        </Button>
+      </View>
+    </View>
+  )
+
+  // Render import password step - enter password to encrypt
+  const renderImportPasswordState = () => (
+    <View style={[a.px_lg, a.py_lg]}>
+      <Text
+        style={[
+          a.text_lg,
+          a.font_bold,
+          a.mb_md,
+          {color: theme.atoms.text.color},
+        ]}>
+        <Trans>Set Wallet Password</Trans>
+      </Text>
+
+      <View
+        style={[
+          a.mb_lg,
+          a.p_md,
+          a.rounded_sm,
+          {backgroundColor: theme.atoms.bg_contrast_25.backgroundColor},
+        ]}>
+        <Text
+          style={[
+            a.text_sm,
+            a.mb_xs,
+            {color: theme.atoms.text_contrast_medium.color},
+          ]}>
+          <Trans>Imported wallet address:</Trans>
+        </Text>
+        <Text
+          selectable
+          style={[
+            a.text_md,
+            {color: theme.atoms.text.color, fontFamily: 'monospace'},
+          ]}>
+          {walletAddress}
+        </Text>
+      </View>
+
+      <Text
+        style={[
+          a.text_sm,
+          a.mb_lg,
+          {color: theme.atoms.text_contrast_medium.color},
+        ]}>
+        <Trans>
+          Choose a strong password to encrypt your wallet. You will need this
+          password to access your wallet.
+        </Trans>
+      </Text>
+
+      <View style={[a.mb_md]}>
+        <Text style={[a.text_sm, a.mb_xs, {color: theme.atoms.text.color}]}>
+          <Trans>Password</Trans>
+        </Text>
+        <TextInput
+          accessibilityLabel={_(msg`Password`)}
+          accessibilityHint={_(msg`Enter a password to encrypt your wallet`)}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[
+            a.px_md,
+            a.py_sm,
+            a.rounded_sm,
+            a.text_md,
+            {
+              borderWidth: 1,
+              borderColor: theme.atoms.border_contrast_low.borderColor,
+              backgroundColor: theme.atoms.bg.backgroundColor,
+              color: theme.atoms.text.color,
+            },
+          ]}
+          placeholder={_(msg`Enter password (min 6 characters)`)}
+          placeholderTextColor={theme.atoms.text_contrast_low.color}
+        />
+      </View>
+
+      <View style={[a.mb_lg]}>
+        <Text style={[a.text_sm, a.mb_xs, {color: theme.atoms.text.color}]}>
+          <Trans>Confirm Password</Trans>
+        </Text>
+        <TextInput
+          accessibilityLabel={_(msg`Confirm Password`)}
+          accessibilityHint={_(msg`Re-enter your password to confirm`)}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[
+            a.px_md,
+            a.py_sm,
+            a.rounded_sm,
+            a.text_md,
+            {
+              borderWidth: 1,
+              borderColor: theme.atoms.border_contrast_low.borderColor,
+              backgroundColor: theme.atoms.bg.backgroundColor,
+              color: theme.atoms.text.color,
+            },
+          ]}
+          placeholder={_(msg`Confirm password`)}
+          placeholderTextColor={theme.atoms.text_contrast_low.color}
+        />
+      </View>
+
+      {errorMessage ? (
+        <Text style={[a.text_sm, a.mb_md, {color: theme.palette.negative_500}]}>
+          {errorMessage}
+        </Text>
+      ) : null}
+
+      <View style={[a.flex_row, a.gap_sm]}>
+        <Button
+          color="primary"
+          label={_(msg`Save Wallet`)}
+          onPress={handleSaveImportedWallet}
+          disabled={isLoading}
+          style={[a.flex_1]}>
+          <ButtonText>
+            {isLoading ? <Trans>Saving...</Trans> : <Trans>Save Wallet</Trans>}
+          </ButtonText>
+        </Button>
+        <Button
+          color="secondary"
+          label={_(msg`Cancel`)}
+          onPress={handleReset}
+          disabled={isLoading}
+          style={[a.flex_1]}>
+          <ButtonText>
+            <Trans>Cancel</Trans>
+          </ButtonText>
+        </Button>
+      </View>
+    </View>
+  )
+
+  // Render import done state
+  const renderImportDoneState = () => (
+    <View style={[a.px_lg, a.py_lg]}>
+      <Text
+        style={[
+          a.text_lg,
+          a.font_bold,
+          a.mb_md,
+          {color: theme.palette.positive_500},
+        ]}>
+        <Trans>Wallet Imported Successfully!</Trans>
+      </Text>
+
+      <View
+        style={[
+          a.mb_lg,
+          a.p_md,
+          a.rounded_sm,
+          {backgroundColor: theme.atoms.bg_contrast_25.backgroundColor},
+        ]}>
+        <Text
+          style={[
+            a.text_sm,
+            a.mb_xs,
+            {color: theme.atoms.text_contrast_medium.color},
+          ]}>
+          <Trans>Wallet address:</Trans>
+        </Text>
+        <Text
+          selectable
+          style={[
+            a.text_md,
+            {color: theme.atoms.text.color, fontFamily: 'monospace'},
+          ]}>
+          {walletAddress}
+        </Text>
+      </View>
+
+      <Text
+        style={[
+          a.text_sm,
+          a.mb_lg,
+          {color: theme.atoms.text_contrast_medium.color},
+        ]}>
+        <Trans>
+          Your imported wallet has been encrypted and saved. Make sure to:{'\n'}
+          • Keep your password safe{'\n'}• Backup your wallet file{'\n'}• Never
+          share your password or wallet file
+        </Trans>
+      </Text>
+
+      <Button
+        color="primary"
+        label={_(msg`Done`)}
+        onPress={handleReset}
+        style={[a.w_full]}>
+        <ButtonText>
+          <Trans>Done</Trans>
+        </ButtonText>
+      </Button>
+    </View>
+  )
+
   return (
     <Layout.Screen testID="keysScreen">
       <Layout.Header.Outer>
@@ -688,17 +1249,24 @@ export function KeysScreen(
       </Layout.Header.Outer>
       <Layout.Content>
         <SettingsList.Container>
-          {loadMode
-            ? renderLoadMode()
-            : step === 'idle'
-              ? renderIdleState()
-              : step === 'created'
-                ? renderCreatedState()
-                : step === 'enterPassword' || step === 'saving'
-                  ? renderPasswordState()
-                  : step === 'done'
-                    ? renderDoneState()
-                    : null}
+          {/* Import flow takes precedence */}
+          {importStep === 'enterKey'
+            ? renderImportEnterKeyState()
+            : importStep === 'enterPassword' || importStep === 'saving'
+              ? renderImportPasswordState()
+              : importStep === 'done'
+                ? renderImportDoneState()
+                : loadMode
+                  ? renderLoadMode()
+                  : step === 'idle'
+                    ? renderIdleState()
+                    : step === 'created'
+                      ? renderCreatedState()
+                      : step === 'enterPassword' || step === 'saving'
+                        ? renderPasswordState()
+                        : step === 'done'
+                          ? renderDoneState()
+                          : null}
         </SettingsList.Container>
       </Layout.Content>
     </Layout.Screen>

@@ -44,6 +44,17 @@ export type Device = {
    */
   policyUpdateDebugOverride?: boolean
   [PolicyUpdate202508]?: boolean
+
+  /**
+   * Wallet storage - encrypted wallet file content.
+   * The private key is encrypted with the user's password using scrypt+AES.
+   * NEVER store the password or unencrypted private key.
+   */
+  walletEncryptedContent?: string
+  /**
+   * Wallet address (public info, safe to store unencrypted)
+   */
+  walletAddress?: string
 }
 
 export type Account = {
