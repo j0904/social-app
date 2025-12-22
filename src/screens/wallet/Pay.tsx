@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react'
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
+import {Utils} from '@bigtangle/bigtangle-ts'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
@@ -17,7 +18,9 @@ import {
   type CommonNavigatorParams,
   type NavigationProp,
 } from '#/lib/routes/types'
+import {deviceLocales} from '#/locale/deviceLocales'
 import {logger} from '#/logger'
+import {useLanguagePrefs} from '#/state/preferences'
 import {useWallet} from '#/state/wallet'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
 import {atoms as a, useTheme} from '#/alf'
@@ -48,6 +51,21 @@ export function PayScreen(
 ) {
   const theme = useTheme()
   const {_} = useLingui()
+  const {appLanguage} = useLanguagePrefs()
+
+  // Local number formatter based on user's locale
+  const formatNumber = useMemo(() => {
+    const locale = deviceLocales.at(0)
+    const languageTag = locale?.languageTag || appLanguage || 'en-US'
+    return (value: number | string, decimals?: number) => {
+      const num = typeof value === 'string' ? Number.parseFloat(value) : value
+      if (Number.isNaN(num)) return String(value)
+      return new Intl.NumberFormat(languageTag, {
+        minimumFractionDigits: decimals ?? 0,
+        maximumFractionDigits: decimals ?? 8,
+      }).format(num)
+    }
+  }, [appLanguage])
 
   // Navigation
   const navigation = useNavigation<NavigationProp>()
@@ -159,7 +177,7 @@ export function PayScreen(
             existing.balance += valueAmount
           } else {
             // Try to get token info for name
-            let tokenName = 'Unknown'
+            let tokenName = ''
             let decimals = 8
 
             // The base token (all zeros) is BIG
@@ -177,9 +195,7 @@ export function PayScreen(
                 )
                 if (tokenInfo && tokenInfo.getToken) {
                   const token = tokenInfo.getToken()
-                  tokenName = token.getTokenname
-                    ? token.getTokenname()
-                    : 'Unknown'
+                  tokenName = token.getTokenname ? token.getTokenname() : ''
                   decimals = token.getDecimals ? token.getDecimals() : 8
                 }
               } catch (e) {
@@ -334,22 +350,13 @@ export function PayScreen(
       // Create bigtangle wallet instance
       const btWallet = await createBtWallet(wallet as WalletFile)
 
-      // Import only Address and TestParams - avoid Coin due to circular dependency
+      // Import Address and TestParams from the installed package
       const {
         Address,
-      } = require('../../../../bigtangle-ts/dist/net/bigtangle/core/Address.js')
+      } = require('@bigtangle/bigtangle-ts/dist/net/bigtangle/core/Address.js')
       const {
         TestParams,
-      } = require('../../../../bigtangle-ts/dist/net/bigtangle/params/TestParams.js')
-
-      // Get network parameters
-      const networkParameters = TestParams.get()
-
-      // Parse the destination address
-      const destinationAddress = Address.fromBase58(
-        networkParameters,
-        toAddress.trim(),
-      )
+      } = require('@bigtangle/bigtangle-ts/dist/net/bigtangle/params/TestParams.js')
 
       // Parse the amount - convert to smallest unit based on decimals
       const amountInSmallestUnit = BigInt(
@@ -359,19 +366,16 @@ export function PayScreen(
       )
 
       // Create token ID buffer
-      const tokenIdBuffer = Buffer.from(selectedToken.tokenid, 'hex')
+      const tokenIdBuffer = Buffer.from(Utils.HEX.decode(selectedToken.tokenid))
 
       // Use payToList instead of pay to avoid Coin circular dependency
       // payToList(aesKey, giveMoneyResult: Map<Address, bigint>, tokenid: Buffer, memo: string)
       const giveMoneyResult = new Map()
-      giveMoneyResult.set(destinationAddress, amountInSmallestUnit)
-
-      // Use null as aesKey since we're using unencrypted keys in our wallet file
-      const aesKey = null
+      giveMoneyResult.set(toAddress.trim(), amountInSmallestUnit)
 
       // Execute the payment using bigtangle-ts wallet.payToList()
       const block = await btWallet.payToList(
-        aesKey,
+        password,
         giveMoneyResult,
         tokenIdBuffer,
         memo || '',
@@ -558,7 +562,11 @@ export function PayScreen(
                         {item.tokenid.substring(0, 16)}...
                       </Text>
                     </View>
-                    <Text style={[a.text_md]}>{item.balance}</Text>
+                    <Text style={[a.text_md]}>
+                      {item.balance
+                        ? formatNumber(item.balance, item.decimals)
+                        : '0'}
+                    </Text>
                   </View>
                 </Pressable>
               )}
@@ -747,7 +755,10 @@ export function PayScreen(
                 a.text_xs,
                 {color: theme.atoms.text_contrast_medium.color},
               ]}>
-              Balance: {selectedToken.balance}
+              Balance:{' '}
+              {selectedToken.balance
+                ? formatNumber(selectedToken.balance, selectedToken.decimals)
+                : '0'}
             </Text>
           </View>
         ) : (
@@ -927,7 +938,8 @@ export function PayScreen(
           </Text>
           <Text
             style={[a.text_2xl, a.font_bold, {color: theme.atoms.text.color}]}>
-            {quantity} {selectedToken?.tokenname}
+            {formatNumber(quantity, selectedToken?.decimals)}{' '}
+            {selectedToken?.tokenname}
           </Text>
         </View>
 
@@ -1091,7 +1103,8 @@ export function PayScreen(
           {color: theme.atoms.text_contrast_medium.color},
         ]}>
         <Trans>
-          Your payment of {quantity} {selectedToken?.tokenname} has been sent.
+          Your payment of {formatNumber(quantity, selectedToken?.decimals)}{' '}
+          {selectedToken?.tokenname} has been sent.
         </Trans>
       </Text>
 

@@ -190,3 +190,5 @@ For production, create a patch file or ensure the npm package includes these exp
 pkill -f "yarn web" 2>/dev/null;
 
 rm -rf node_modules/bigtangle-ts && yarn add file:/home/jcui/git/bigtangle-ts
+
+yarn test src/screens/wallet/__tests__/hdwallet.test.ts
