@@ -73,6 +73,7 @@
   },
   "dependencies": {
     "@atproto/api": "^0.18.0",
+    "@bigtangle/bigtangle-ts": "file:/home/jcui/git/bigtangle-ts",
     "@bitdrift/react-native": "^0.6.8",
     "@braintree/sanitize-url": "^6.0.2",
     "@bsky.app/alf": "^0.1.5",
@@ -96,7 +97,7 @@
     "@mattermost/react-native-paste-input": "mattermost/react-native-paste-input",
     "@miblanchard/react-native-slider": "^2.6.0",
     "@mozzius/expo-dynamic-app-icon": "^1.8.0",
-    "@noble/hashes": "^2.0.1",
+    "@noble/hashes": "^1.7.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.3.13",
     "@react-navigation/drawer": "^7.3.12",
@@ -123,11 +124,13 @@
     "@types/node": "^20.14.3",
     "@zxing/text-encoding": "^0.9.0",
     "array.prototype.findlast": "^1.2.3",
+    "asn1js": "^3.0.7",
     "await-lock": "^2.2.2",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "bcp-47": "^2.1.0",
     "bcp-47-match": "^2.0.3",
     "bigtangle-ts": "file:../bigtangle-ts",
+    "bs58": "^6.0.0",
     "date-fns": "^2.30.0",
     "email-validator": "^2.0.4",
     "emoji-mart": "^5.5.2",
@@ -221,6 +224,7 @@
     "tippy.js": "^6.3.7",
     "tlds": "^1.234.0",
     "tldts": "^6.1.46",
+    "uint8array-tools": "^0.0.9",
     "zod": "^3.20.2"
   },
   "devDependencies": {

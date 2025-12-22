@@ -147,5 +147,20 @@ module.exports = async function (env, argv) {
   // Ignore source map errors for problematic packages
   config.ignoreWarnings = [/Failed to parse source map/]
 
+  // Add proxy for bigtangle server to bypass CORS in development
+  if (env.mode === 'development') {
+    if (!config.devServer) {
+      config.devServer = {}
+    }
+    config.devServer.proxy = {
+      '/bigtangle': {
+        target: 'http://localhost:8088',
+        pathRewrite: {'^/bigtangle': ''},
+        changeOrigin: true,
+        secure: false,
+      },
+    }
+  }
+
   return config
 }

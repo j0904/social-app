@@ -185,3 +185,8 @@ The bigtangle-ts package must have `./dist/*` exports for submodule imports to w
 
 For local development, this was added directly to `/home/jcui/git/bigtangle-ts/package.json`.
 For production, create a patch file or ensure the npm package includes these exports.
+
+
+pkill -f "yarn web" 2>/dev/null;
+
+rm -rf node_modules/bigtangle-ts && yarn add file:/home/jcui/git/bigtangle-ts

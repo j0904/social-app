@@ -1,10 +1,20 @@
 /**
  * WalletHelper.ts - Bigtangle wallet utilities
  *
- * Uses require() for bigtangle-ts imports because the library doesn't
- * generate TypeScript declaration files (.d.ts). The runtime code works
- * correctly, but TypeScript can't verify the types at compile time.
+ * Uses imports from bigtangle-ts to work in both Node.js and webpack environments.
+ * Note: bigtangle-ts doesn't have TypeScript declaration files, so we use @ts-ignore
+ * for type errors. The runtime code works correctly.
  */
+
+// @ts-ignore - bigtangle-ts doesn't have declaration files
+import {
+  Base58,
+  ECKey,
+  KeyCrypterScrypt,
+  TestParams,
+  Utils,
+  Wallet,
+} from '@bigtangle/bigtangle-ts'
 
 export interface CredentialEntry {
   url: string
@@ -28,43 +38,19 @@ export interface SerializedWallet {
 }
 
 // Default context root for bigtangle network
-const DEFAULT_CONTEXT_ROOT = 'http://localhost:8088/'
+// In browser, use the proxy path to bypass CORS; in Node.js, use direct URL
+const DEFAULT_CONTEXT_ROOT =
+  typeof window !== 'undefined' ? '/bigtangle/' : 'http://localhost:8088/'
 
 /**
- * Import bigtangle-ts core modules using require() for Jest compatibility
- * and to avoid TypeScript declaration issues.
- * Use relative paths to the actual bigtangle-ts repo.
+ * Get TestParams instance (lazy loaded and cached)
  */
-function importCoreModules() {
-  // Use relative path from social-app to bigtangle-ts
-  const basePath = '../../../../bigtangle-ts/dist/net/bigtangle'
-  const ECKeyModule = require(`${basePath}/core/ECKey.js`)
-  const UtilsModule = require(`${basePath}/core/Utils.js`)
-  const TestParamsModule = require(`${basePath}/params/TestParams.js`)
-  const Base58Module = require(`${basePath}/utils/Base58.js`)
-
-  return {
-    ECKey: ECKeyModule.ECKey,
-    Utils: UtilsModule.Utils,
-    TestParams: TestParamsModule.TestParams,
-    Base58: Base58Module.Base58,
-  }
-}
-
-// Lazy-loaded modules (cached after first use)
-let _coreModules: ReturnType<typeof importCoreModules> | null = null
-function getCoreModules() {
-  if (!_coreModules) {
-    _coreModules = importCoreModules()
-  }
-  return _coreModules
-}
-
-/**
- * Network parameters for TestNet (lazy loaded)
- */
+let _testParams: any = null
 function getTestParams(): any {
-  return getCoreModules().TestParams.get()
+  if (!_testParams) {
+    _testParams = TestParams.get()
+  }
+  return _testParams
 }
 
 /**
@@ -83,26 +69,8 @@ function getRandomBytes(length: number): Uint8Array {
   return bytes
 }
 
-/**
- * Helper to import KeyCrypterScrypt module.
- * Uses require() for Jest compatibility.
- */
-function importKeyCrypter() {
-  const module = require('../../../../bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js')
-  return module.KeyCrypterScrypt
-}
-
-/**
- * Helper to import bigtangle-ts Wallet module for wallet operations
- */
-function importWalletModule() {
-  const WalletModule = require('../../../../bigtangle-ts/dist/net/bigtangle/wallet/Wallet.js')
-  return WalletModule.Wallet
-}
-
 // Use bigtangle-ts ECKey and Address for wallet creation
 export async function createWallet(): Promise<WalletFile> {
-  const {ECKey, Utils} = getCoreModules()
   const testParams = getTestParams()
 
   // Generate a new EC key pair using bigtangle-ts ECKey
@@ -130,8 +98,6 @@ export async function saveKeyToFile(
   walletFile: WalletFile,
   _password: string,
 ): Promise<string> {
-  const {Utils} = getCoreModules()
-
   const serialized: SerializedWallet = {
     keys: [
       {
@@ -142,7 +108,6 @@ export async function saveKeyToFile(
     credentials: walletFile.credentials,
   }
 
-  const KeyCrypterScrypt = importKeyCrypter()
   const raw = JSON.stringify(serialized, null, 2)
 
   // Convert string to Uint8Array for encryption
@@ -172,9 +137,7 @@ export async function loadWallet(
   fileData: string,
   _password: string,
 ): Promise<WalletFile> {
-  const {Utils, ECKey} = getCoreModules()
   const testParams = getTestParams()
-  const KeyCrypterScrypt = importKeyCrypter()
 
   // Parse the encrypted file format
   const encrypted = JSON.parse(fileData)
@@ -234,7 +197,6 @@ function base58CheckDecode(encoded: string): {
   version: number
   payload: Uint8Array
 } {
-  const {Base58} = getCoreModules()
   const decoded = Base58.decodeChecked(encoded)
   return {
     version: decoded[0],
@@ -250,7 +212,6 @@ function base58CheckDecode(encoded: string): {
 export async function importPrivateKey(
   privateKeyInput: string,
 ): Promise<WalletFile> {
-  const {ECKey, Utils} = getCoreModules()
   const testParams = getTestParams()
 
   let privateKeyHex: string
@@ -334,8 +295,6 @@ export async function createBigtangleWallet(
   walletFile: WalletFile,
   contextRoot: string = DEFAULT_CONTEXT_ROOT,
 ): Promise<any> {
-  const {ECKey} = getCoreModules()
-  const Wallet = importWalletModule()
   const testParams = getTestParams()
 
   // Create ECKey from private key hex string
@@ -359,8 +318,6 @@ export async function createBigtangleWalletFromPrivateKey(
   privateKey: string,
   contextRoot: string = DEFAULT_CONTEXT_ROOT,
 ): Promise<any> {
-  const {ECKey} = getCoreModules()
-  const Wallet = importWalletModule()
   const testParams = getTestParams()
 
   // Create ECKey from private key hex string
