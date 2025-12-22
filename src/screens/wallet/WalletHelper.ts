@@ -1,7 +1,10 @@
-import {secp256k1} from '@noble/curves/secp256k1'
-import {ripemd160} from '@noble/hashes/ripemd160'
-import {sha256} from '@noble/hashes/sha256'
-import {randomBytes} from '@noble/hashes/utils'
+/**
+ * WalletHelper.ts - Bigtangle wallet utilities
+ *
+ * Uses require() for bigtangle-ts imports because the library doesn't
+ * generate TypeScript declaration files (.d.ts). The runtime code works
+ * correctly, but TypeScript can't verify the types at compile time.
+ */
 
 export interface CredentialEntry {
   url: string
@@ -27,180 +30,62 @@ export interface SerializedWallet {
 // Default context root for bigtangle network
 const DEFAULT_CONTEXT_ROOT = 'http://localhost:8088/'
 
-// Base58 alphabet (same as Bitcoin)
-const BASE58_ALPHABET =
-  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
-
 /**
- * Encode bytes to Base58 string
+ * Import bigtangle-ts core modules using require() for Jest compatibility
+ * and to avoid TypeScript declaration issues.
+ * Use relative paths to the actual bigtangle-ts repo.
  */
-function base58Encode(bytes: Uint8Array): string {
-  // Count leading zeros
-  let zeros = 0
-  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
-    zeros++
-  }
-
-  // Convert to base58
-  const encoded: number[] = []
-  for (let i = zeros; i < bytes.length; i++) {
-    let carry = bytes[i]
-    for (let j = 0; j < encoded.length; j++) {
-      carry += encoded[j] << 8
-      encoded[j] = carry % 58
-      carry = Math.floor(carry / 58)
-    }
-    while (carry > 0) {
-      encoded.push(carry % 58)
-      carry = Math.floor(carry / 58)
-    }
-  }
-
-  // Build result string
-  let result = ''
-  for (let i = 0; i < zeros; i++) {
-    result += BASE58_ALPHABET[0]
-  }
-  for (let i = encoded.length - 1; i >= 0; i--) {
-    result += BASE58_ALPHABET[encoded[i]]
-  }
-
-  return result
-}
-
-/**
- * Decode Base58 string to bytes
- */
-function base58Decode(str: string): Uint8Array {
-  // Count leading '1's (zeros)
-  let zeros = 0
-  for (let i = 0; i < str.length && str[i] === '1'; i++) {
-    zeros++
-  }
-
-  // Decode base58
-  const decoded: number[] = []
-  for (let i = zeros; i < str.length; i++) {
-    const idx = BASE58_ALPHABET.indexOf(str[i])
-    if (idx === -1) {
-      throw new Error('Invalid Base58 character')
-    }
-    let carry = idx
-    for (let j = 0; j < decoded.length; j++) {
-      carry += decoded[j] * 58
-      decoded[j] = carry & 0xff
-      carry >>= 8
-    }
-    while (carry > 0) {
-      decoded.push(carry & 0xff)
-      carry >>= 8
-    }
-  }
-
-  // Build result with leading zeros
-  const result = new Uint8Array(zeros + decoded.length)
-  for (let i = 0; i < zeros; i++) {
-    result[i] = 0
-  }
-  for (let i = 0; i < decoded.length; i++) {
-    result[zeros + i] = decoded[decoded.length - 1 - i]
-  }
-
-  return result
-}
-
-/**
- * Encode bytes to Base58Check (with checksum)
- */
-function base58CheckEncode(version: number, payload: Uint8Array): string {
-  const versionedPayload = new Uint8Array(1 + payload.length)
-  versionedPayload[0] = version
-  versionedPayload.set(payload, 1)
-
-  // Double SHA256 for checksum
-  const checksum = sha256(sha256(versionedPayload)).slice(0, 4)
-
-  const full = new Uint8Array(versionedPayload.length + 4)
-  full.set(versionedPayload)
-  full.set(checksum, versionedPayload.length)
-
-  return base58Encode(full)
-}
-
-/**
- * Decode Base58Check string
- */
-function base58CheckDecode(str: string): {
-  version: number
-  payload: Uint8Array
-} {
-  const decoded = base58Decode(str)
-  if (decoded.length < 5) {
-    throw new Error('Invalid Base58Check string: too short')
-  }
-
-  const payload = decoded.slice(0, -4)
-  const checksum = decoded.slice(-4)
-
-  // Verify checksum
-  const expectedChecksum = sha256(sha256(payload)).slice(0, 4)
-  for (let i = 0; i < 4; i++) {
-    if (checksum[i] !== expectedChecksum[i]) {
-      throw new Error('Invalid checksum')
-    }
-  }
+function importCoreModules() {
+  // Use relative path from social-app to bigtangle-ts
+  const basePath = '../../../../bigtangle-ts/dist/net/bigtangle'
+  const ECKeyModule = require(`${basePath}/core/ECKey.js`)
+  const UtilsModule = require(`${basePath}/core/Utils.js`)
+  const TestParamsModule = require(`${basePath}/params/TestParams.js`)
+  const Base58Module = require(`${basePath}/utils/Base58.js`)
 
   return {
-    version: payload[0],
-    payload: payload.slice(1),
+    ECKey: ECKeyModule.ECKey,
+    Utils: UtilsModule.Utils,
+    TestParams: TestParamsModule.TestParams,
+    Base58: Base58Module.Base58,
   }
 }
 
-/**
- * Network parameters for TestNet
- */
-const TEST_PARAMS = {
-  addressHeader: 111, // 0x6f - testnet P2PKH address prefix
-  p2shHeader: 196, // 0xc4 - testnet P2SH address prefix
+// Lazy-loaded modules (cached after first use)
+let _coreModules: ReturnType<typeof importCoreModules> | null = null
+function getCoreModules() {
+  if (!_coreModules) {
+    _coreModules = importCoreModules()
+  }
+  return _coreModules
 }
 
 /**
- * Generate a new EC key pair
+ * Network parameters for TestNet (lazy loaded)
  */
-function createNewKey(): {privateKey: Uint8Array; publicKey: Uint8Array} {
-  const privateKey = randomBytes(32)
-
-  // Ensure private key is valid (non-zero, less than curve order)
-  // @noble/curves will reject invalid keys
-  const publicKey = secp256k1.getPublicKey(privateKey, true) // compressed
-
-  return {privateKey, publicKey}
+function getTestParams(): any {
+  return getCoreModules().TestParams.get()
 }
 
 /**
- * Get public key hash (RIPEMD160(SHA256(pubKey)))
+ * Generate random bytes using crypto API
  */
-function getPubKeyHash(publicKey: Uint8Array): Uint8Array {
-  return ripemd160(sha256(publicKey))
-}
-
-/**
- * Create address from public key hash
- */
-function addressFromPubKeyHash(
-  pubKeyHash: Uint8Array,
-  version: number = TEST_PARAMS.addressHeader,
-): string {
-  return base58CheckEncode(version, pubKeyHash)
+function getRandomBytes(length: number): Uint8Array {
+  const bytes = new Uint8Array(length)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes)
+  } else {
+    // Fallback for environments without crypto
+    for (let i = 0; i < length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256)
+    }
+  }
+  return bytes
 }
 
 /**
  * Helper to import KeyCrypterScrypt module.
- * This module doesn't have circular dependency issues.
- *
- * Uses require() instead of dynamic import() for Jest compatibility.
- * The KeyCrypterScrypt module doesn't trigger the circular dependency chain
- * because it only imports from crypto/, not from core/ where Coin/Block live.
+ * Uses require() for Jest compatibility.
  */
 function importKeyCrypter() {
   const module = require('../../../../bigtangle-ts/dist/net/bigtangle/crypto/KeyCrypterScrypt.js')
@@ -208,38 +93,34 @@ function importKeyCrypter() {
 }
 
 /**
- * Helper to import bigtangle-ts modules for wallet operations
+ * Helper to import bigtangle-ts Wallet module for wallet operations
  */
-function importBigtangleModules() {
+function importWalletModule() {
   const WalletModule = require('../../../../bigtangle-ts/dist/net/bigtangle/wallet/Wallet.js')
-  const ECKeyModule = require('../../../../bigtangle-ts/dist/net/bigtangle/core/ECKey.js')
-  const TestParamsModule = require('../../../../bigtangle-ts/dist/net/bigtangle/params/TestParams.js')
-
-  return {
-    Wallet: WalletModule.Wallet,
-    ECKey: ECKeyModule.ECKey,
-    TestParams: TestParamsModule.TestParams,
-  }
+  return WalletModule.Wallet
 }
 
-// Use our standalone crypto implementation to avoid bigtangle-ts circular dependencies
+// Use bigtangle-ts ECKey and Address for wallet creation
 export async function createWallet(): Promise<WalletFile> {
-  // Generate a new EC key pair using our standalone implementation
-  const {privateKey, publicKey} = createNewKey()
+  const {ECKey, Utils} = getCoreModules()
+  const testParams = getTestParams()
 
-  // Get public key hash and create address
-  const pubKeyHash = getPubKeyHash(publicKey)
-  const addr = addressFromPubKeyHash(pubKeyHash)
+  // Generate a new EC key pair using bigtangle-ts ECKey
+  const ecKey = ECKey.createNewKey()
+
+  // Get the private key hex and address from the ECKey
+  const privateKeyHex = ecKey.getPrivateKeyAsHex()
+  const addr = ecKey.toAddress(testParams).toBase58()
 
   const wallet: Key = {
     address: addr,
-    privateKey: bytesToHex(privateKey),
+    privateKey: privateKeyHex,
   }
 
   const credentials: CredentialEntry = {
     url: 'https://wallet.bigt.ai',
     user: addr + '@bigt.ai',
-    password: bytesToHex(randomBytes(32)),
+    password: Utils.HEX.encode(getRandomBytes(32)),
   }
 
   return {wallet, credentials}
@@ -249,6 +130,8 @@ export async function saveKeyToFile(
   walletFile: WalletFile,
   _password: string,
 ): Promise<string> {
+  const {Utils} = getCoreModules()
+
   const serialized: SerializedWallet = {
     keys: [
       {
@@ -273,9 +156,9 @@ export async function saveKeyToFile(
   // Serialize the EncryptedData object to a JSON-safe format
   // We need to save: salt (from scryptParameters), iv, and encryptedBytes
   const output = {
-    salt: bytesToHex(keyCrypter.scryptParameters.salt),
-    iv: bytesToHex(encryptedData.initialisationVector),
-    data: bytesToHex(encryptedData.encryptedBytes),
+    salt: Utils.HEX.encode(keyCrypter.scryptParameters.salt),
+    iv: Utils.HEX.encode(encryptedData.initialisationVector),
+    data: Utils.HEX.encode(encryptedData.encryptedBytes),
     // Save scrypt params for decryption
     N: keyCrypter.scryptParameters.N,
     r: keyCrypter.scryptParameters.r,
@@ -289,6 +172,8 @@ export async function loadWallet(
   fileData: string,
   _password: string,
 ): Promise<WalletFile> {
+  const {Utils, ECKey} = getCoreModules()
+  const testParams = getTestParams()
   const KeyCrypterScrypt = importKeyCrypter()
 
   // Parse the encrypted file format
@@ -296,7 +181,7 @@ export async function loadWallet(
 
   // Reconstruct scrypt parameters with the saved salt
   const keyCrypter = new KeyCrypterScrypt({
-    salt: hexToBytes(encrypted.salt),
+    salt: Utils.HEX.decode(encrypted.salt),
     N: encrypted.N,
     r: encrypted.r,
     p: encrypted.p,
@@ -307,8 +192,8 @@ export async function loadWallet(
 
   // Reconstruct the EncryptedData object
   const encryptedData = {
-    initialisationVector: hexToBytes(encrypted.iv),
-    encryptedBytes: hexToBytes(encrypted.data),
+    initialisationVector: Utils.HEX.decode(encrypted.iv),
+    encryptedBytes: Utils.HEX.decode(encrypted.data),
   }
 
   // Decrypt the data
@@ -326,13 +211,9 @@ export async function loadWallet(
 
   const keyData = parsed.keys[0]
 
-  // Recreate the public key from the stored private key
-  const privateKeyBytes = hexToBytes(keyData.privateKey)
-  const publicKey = secp256k1.getPublicKey(privateKeyBytes, true) // compressed
-
-  // Recreate address from public key
-  const pubKeyHash = getPubKeyHash(publicKey)
-  const reconstructedAddress = addressFromPubKeyHash(pubKeyHash)
+  // Recreate ECKey and address from the stored private key using bigtangle-ts
+  const ecKey = ECKey.fromPrivateString(keyData.privateKey)
+  const reconstructedAddress = ecKey.toAddress(testParams).toBase58()
 
   const wallet: Key = {
     address: reconstructedAddress,
@@ -345,20 +226,20 @@ export async function loadWallet(
   }
 }
 
-// Helper function to convert bytes to hex
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-// Helper function to convert hex to bytes
-function hexToBytes(hex: string): Uint8Array {
-  const matches = hex.match(/.{1,2}/g)
-  if (!matches) {
-    throw new Error('Invalid hex string')
+/**
+ * Decode a Base58Check-encoded string and return the version byte and payload.
+ * Uses bigtangle-ts Base58.decodeChecked which validates the checksum.
+ */
+function base58CheckDecode(encoded: string): {
+  version: number
+  payload: Uint8Array
+} {
+  const {Base58} = getCoreModules()
+  const decoded = Base58.decodeChecked(encoded)
+  return {
+    version: decoded[0],
+    payload: decoded.slice(1),
   }
-  return new Uint8Array(matches.map(byte => Number.parseInt(byte, 16)))
 }
 
 /**
@@ -369,8 +250,10 @@ function hexToBytes(hex: string): Uint8Array {
 export async function importPrivateKey(
   privateKeyInput: string,
 ): Promise<WalletFile> {
+  const {ECKey, Utils} = getCoreModules()
+  const testParams = getTestParams()
+
   let privateKeyHex: string
-  let privateKeyBytes: Uint8Array
 
   // Clean up input - remove spaces and trim
   const cleanInput = privateKeyInput.trim().replaceAll(/\s+/g, '')
@@ -385,6 +268,7 @@ export async function importPrivateKey(
         throw new Error('Invalid WIF version')
       }
       // If compressed (33 bytes with 0x01 suffix), remove the suffix
+      let privateKeyBytes: Uint8Array
       if (decoded.payload.length === 33 && decoded.payload[32] === 0x01) {
         privateKeyBytes = decoded.payload.slice(0, 32)
       } else if (decoded.payload.length === 32) {
@@ -392,33 +276,30 @@ export async function importPrivateKey(
       } else {
         throw new Error('Invalid WIF payload length')
       }
-      privateKeyHex = bytesToHex(privateKeyBytes)
+      privateKeyHex = Utils.HEX.encode(privateKeyBytes)
     } catch (e) {
       throw new Error(`Invalid WIF format: ${(e as Error).message}`)
     }
   } else if (/^[0-9a-fA-F]{64}$/.test(cleanInput)) {
     // It's a hex private key
     privateKeyHex = cleanInput.toLowerCase()
-    privateKeyBytes = hexToBytes(privateKeyHex)
   } else {
     throw new Error(
       'Invalid private key format. Expected 64-character hex string or WIF format.',
     )
   }
 
-  // Validate the private key by generating the public key
-  let publicKey: Uint8Array
+  // Validate the private key and generate address using bigtangle-ts ECKey
+  let ecKey: any
+  let address: string
   try {
-    publicKey = secp256k1.getPublicKey(privateKeyBytes, true) // compressed
+    ecKey = ECKey.fromPrivateString(privateKeyHex)
+    address = ecKey.toAddress(testParams).toBase58()
   } catch (error_) {
     // Log the error for debugging purposes
-    console.error('secp256k1 error:', error_)
+    console.error('ECKey error:', error_)
     throw new Error('Invalid private key: failed to generate public key')
   }
-
-  // Generate address from public key
-  const pubKeyHash = getPubKeyHash(publicKey)
-  const address = addressFromPubKeyHash(pubKeyHash)
 
   const wallet: Key = {
     address,
@@ -428,7 +309,7 @@ export async function importPrivateKey(
   const credentials: CredentialEntry = {
     url: 'https://wallet.bigt.ai',
     user: address + '@bigt.ai',
-    password: bytesToHex(randomBytes(32)),
+    password: Utils.HEX.encode(getRandomBytes(32)),
   }
 
   return {wallet, credentials}
@@ -453,21 +334,16 @@ export async function createBigtangleWallet(
   walletFile: WalletFile,
   contextRoot: string = DEFAULT_CONTEXT_ROOT,
 ): Promise<any> {
-  const {Wallet, ECKey, TestParams} = importBigtangleModules()
-
-  // Get network parameters (TestNet)
-  const networkParameters = TestParams.get()
+  const {ECKey} = getCoreModules()
+  const Wallet = importWalletModule()
+  const testParams = getTestParams()
 
   // Create ECKey from private key hex string
   const ecKey = ECKey.fromPrivateString(walletFile.wallet.privateKey)
   const keys = [ecKey]
 
   // Create wallet using Wallet.fromKeysURL
-  const btWallet = await Wallet.fromKeysURL(
-    networkParameters,
-    keys,
-    contextRoot,
-  )
+  const btWallet = await Wallet.fromKeysURL(testParams, keys, contextRoot)
 
   return btWallet
 }
@@ -483,21 +359,16 @@ export async function createBigtangleWalletFromPrivateKey(
   privateKey: string,
   contextRoot: string = DEFAULT_CONTEXT_ROOT,
 ): Promise<any> {
-  const {Wallet, ECKey, TestParams} = importBigtangleModules()
-
-  // Get network parameters (TestNet)
-  const networkParameters = TestParams.get()
+  const {ECKey} = getCoreModules()
+  const Wallet = importWalletModule()
+  const testParams = getTestParams()
 
   // Create ECKey from private key hex string
   const ecKey = ECKey.fromPrivateString(privateKey)
   const keys = [ecKey]
 
   // Create wallet using Wallet.fromKeysURL
-  const btWallet = await Wallet.fromKeysURL(
-    networkParameters,
-    keys,
-    contextRoot,
-  )
+  const btWallet = await Wallet.fromKeysURL(testParams, keys, contextRoot)
 
   return btWallet
 }
