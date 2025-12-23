@@ -83,9 +83,6 @@ export function PayScreen(
   // Check if wallet exists - check both state and storage
   const hasWallet = !!publicInfo?.hasEncryptedWallet || checkHasWallet()
 
-  // Bigtangle wallet instance ref
-  const btWalletRef = useRef<any>(null)
-
   // Form state
   const [step, setStep] = useState<PayStep>('form')
   const [selectedToken, setSelectedToken] = useState<Token | null>(null)
@@ -113,14 +110,10 @@ export function PayScreen(
     'loadTokens' | 'confirm'
   >('loadTokens')
 
-  // Create bigtangle wallet from wallet file
+  // Create bigtangle wallet from wallet file (always create fresh instance)
   const createBtWallet = useCallback(
     async (walletFile: WalletFile): Promise<any> => {
-      if (btWalletRef.current) {
-        return btWalletRef.current
-      }
       const btWallet = await createBigtangleWallet(walletFile, CONTEXT_ROOT)
-      btWalletRef.current = btWallet
       return btWallet
     },
     [],
@@ -347,8 +340,11 @@ export function PayScreen(
         throw new Error('Wallet not unlocked')
       }
 
-      // Create bigtangle wallet instance
+      // Create bigtangle wallet instance (fresh instance each time)
       const btWallet = await createBtWallet(wallet as WalletFile)
+
+      // Brief pause to ensure wallet is properly initialized for signing
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Import Address and TestParams from the installed package
       const {
@@ -374,6 +370,7 @@ export function PayScreen(
       giveMoneyResult.set(toAddress.trim(), amountInSmallestUnit)
 
       // Execute the payment using bigtangle-ts wallet.payToList()
+      // The library will internally call calculateAllSpendCandidatesUTXO
       const block = await btWallet.payToList(
         password,
         giveMoneyResult,
