@@ -4,7 +4,7 @@ import {useWindowDimensions} from 'react-native'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 
-import {BSKY_SERVICE} from '#/lib/constants'
+import {PDS_SERVER} from '#/lib/constants'
 import {logger} from '#/logger'
 import * as persisted from '#/state/persisted'
 import {useSession} from '#/state/session'
@@ -18,7 +18,7 @@ import {Globe_Stroke2_Corner0_Rounded as Globe} from '#/components/icons/Globe'
 import {InlineLinkText} from '#/components/Link'
 import {Text} from '#/components/Typography'
 
-type SegmentedControlOptions = typeof BSKY_SERVICE | 'custom'
+type SegmentedControlOptions = typeof PDS_SERVER | 'custom'
 
 export function ServerInputDialog({
   control,
@@ -32,19 +32,19 @@ export function ServerInputDialog({
 
   // persist these options between dialog open/close
   const [fixedOption, setFixedOption] =
-    useState<SegmentedControlOptions>(BSKY_SERVICE)
+    useState<SegmentedControlOptions>(PDS_SERVER)
   const [previousCustomAddress, setPreviousCustomAddress] = useState('')
 
   const onClose = useCallback(() => {
     const result = formRef.current?.getFormState()
     if (result) {
       onSelect(result)
-      if (result !== BSKY_SERVICE) {
+      if (result !== PDS_SERVER) {
         setPreviousCustomAddress(result)
       }
     }
     logger.metric('signin:hostingProviderPressed', {
-      hostingProviderDidChange: fixedOption !== BSKY_SERVICE,
+      hostingProviderDidChange: fixedOption !== PDS_SERVER,
     })
   }, [onSelect, fixedOption])
 
@@ -143,10 +143,10 @@ function DialogInner({
           onChange={setFixedOption}>
           <SegmentedControl.Item
             testID="bskyServiceSelectBtn"
-            value={BSKY_SERVICE}
-            label={_(msg`Bluesky`)}>
+            value={PDS_SERVER}
+            label={_(msg`PDS (bigt.ai)`)}>
             <SegmentedControl.ItemText>
-              {_(msg`Bluesky`)}
+              {_(msg`PDS (bigt.ai)`)}
             </SegmentedControl.ItemText>
           </SegmentedControl.Item>
           <SegmentedControl.Item
@@ -159,16 +159,26 @@ function DialogInner({
           </SegmentedControl.Item>
         </SegmentedControl.Root>
 
-        {fixedOption === BSKY_SERVICE && isFirstTimeUser && (
-          <View role="tabpanel">
-            <Admonition type="tip">
-              <Trans>
-                Bluesky is an open network where you can choose your own
-                provider. If you're new here, we recommend sticking with the
-                default Bluesky Social option.
-              </Trans>
-            </Admonition>
-          </View>
+        {fixedOption === PDS_SERVER && isFirstTimeUser && (
+          <>
+            <View role="tabpanel">
+              <Admonition type="tip">
+                <Trans>
+                  This app is configured to use the PDS server at bigt.ai by
+                  default.
+                </Trans>
+              </Admonition>
+            </View>
+            <View role="tabpanel">
+              <Admonition type="tip">
+                <Trans>
+                  Bluesky is an open network where you can choose your own
+                  provider. If you're new here, we recommend sticking with the
+                  default Bluesky Social option.
+                </Trans>
+              </Admonition>
+            </View>
+          </>
         )}
 
         {fixedOption === 'custom' && (

@@ -5,12 +5,15 @@ import {type ProxyHeaderValue} from '#/state/session/agent'
 import {BLUESKY_PROXY_DID, CHAT_PROXY_DID} from '#/env'
 
 export const LOCAL_DEV_SERVICE =
-  Platform.OS === 'android' ? 'http://10.0.2.2:2583' : 'http://localhost:2583'
+  Platform.OS === 'android' ? 'http://10.0.2.2:2583' : 'https://pds.bigt.ai/'
+
+// Use https://pds.bigt.ai/ as the main PDS server
+export const PDS_SERVER = 'https://pds.bigt.ai/'
 export const STAGING_SERVICE = 'https://staging.bsky.dev'
 export const BSKY_SERVICE = 'https://bsky.social'
 export const BSKY_SERVICE_DID = 'did:web:bsky.social'
 export const PUBLIC_BSKY_SERVICE = 'https://public.api.bsky.app'
-export const DEFAULT_SERVICE = BSKY_SERVICE
+export const DEFAULT_SERVICE = PDS_SERVER
 const HELP_DESK_LANG = 'en-us'
 export const HELP_DESK_URL = `https://blueskyweb.zendesk.com/hc/${HELP_DESK_LANG}`
 export const EMBED_SERVICE = 'https://embed.bsky.app'

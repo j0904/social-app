@@ -9,7 +9,11 @@ import {isEmailMaybeInvalid} from '#/lib/strings/email'
 import {logger} from '#/logger'
 import {is13, is18, useSignupContext} from '#/screens/Signup/state'
 import {Policies} from '#/screens/Signup/StepInfo/Policies'
-import {createWallet, saveKeyToFile} from '#/screens/wallet/WalletHelper'
+import {
+  createWallet,
+  loadWallet,
+  saveKeyToFile,
+} from '#/screens/wallet/WalletHelper'
 import {atoms as a, native} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import * as DateField from '#/components/forms/DateField'
@@ -60,94 +64,74 @@ export function StepInfo({
 
   const [hasWarnedEmail, setHasWarnedEmail] = React.useState<boolean>(false)
 
-  // Wallet state for demo
+  // Wallet state for loading
   const [walletInfo, setWalletInfo] = React.useState<string | null>(null)
-  const [showWalletPassword, setShowWalletPassword] = React.useState(false)
-  const [walletPassword, setWalletPassword] = React.useState('')
-  const [generatedMnemonic, setGeneratedMnemonic] = React.useState<
-    string | null
-  >(null)
-  const [generatedFilename, setGeneratedFilename] = React.useState<
-    string | null
-  >(null)
+  const [showLoadPassword, setShowLoadPassword] = React.useState(false)
+  const [loadPassword, setLoadPassword] = React.useState('')
+  const [loadedWalletData, setLoadedWalletData] = React.useState<any>(null)
 
-  // Handler for generating a new wallet and saving to file
-  const handleGenerateWallet = React.useCallback(async () => {
-    try {
-      const walletData = await createWallet()
-      setGeneratedMnemonic(JSON.stringify(walletData)) // Store wallet data as JSON string
-      const filename = `bsky-wallet-${Date.now()}.json` // Example filename
-
-      setGeneratedFilename(filename)
-      setShowWalletPassword(true)
-    } catch (e) {
-      setWalletInfo('Error generating wallet: ' + (e as Error).message)
-    }
-  }, [])
-
-  // Handler for actually generating and saving wallet after password entry
-  const handleConfirmGenerateWallet = React.useCallback(async () => {
-    if (!generatedMnemonic || !generatedFilename) {
-      setWalletInfo('Error: Wallet not generated yet.')
-      return
-    }
-    try {
-      // The generatedMnemonic contains the wallet data as JSON string
-      const walletData = JSON.parse(generatedMnemonic)
-      const fileContent = await saveKeyToFile(walletData, walletPassword)
-      // Set email/password from the wallet in UI
-      dispatch({type: 'setEmail', value: walletData.credentials.user})
-      dispatch({type: 'setPassword', value: walletData.credentials.password})
-      dispatch({type: 'clearError'}) // Clear any existing validation errors
-      if (Platform.OS === 'web') {
-        // Use File System Access API if available
-        if ('showSaveFilePicker' in window) {
-          try {
-            const opts = {
-              types: [
-                {
-                  description: 'Wallet Files',
-                  accept: {'application/json': ['.json', '.wallet', '.txt']},
-                },
-              ],
-              suggestedName: generatedFilename,
-            }
-            // @ts-ignore
-            const handle = await window.showSaveFilePicker(opts)
-            const writable = await handle.createWritable()
-            await writable.write(fileContent)
-            await writable.close()
-            setWalletInfo(`Wallet generated and saved to: ${handle.name}`)
-          } catch (e) {
-            setWalletInfo('Wallet save cancelled or failed.')
+  // Handler for loading an existing wallet file on web
+  const handleLoadWalletWeb = React.useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (file) {
+        try {
+          const content = await file.text()
+          if (content) {
+            // Store the content temporarily
+            ;(globalThis as any).__walletFileContent = content
+            setShowLoadPassword(true) // Show password input to decrypt the wallet
+            setWalletInfo('Wallet file loaded. Enter password to decrypt.')
           }
-        } else {
-          // fallback: download as file
-          const walletBlob = new Blob([fileContent], {type: 'application/json'})
-          const link = document.createElement('a')
-          link.href = URL.createObjectURL(walletBlob)
-          link.download = generatedFilename
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(link.href)
+        } catch (error) {
           setWalletInfo(
-            `Wallet generated and downloaded as: ${generatedFilename}`,
+            'Error loading wallet file: ' + (error as Error).message,
           )
         }
-      } else {
-        setWalletInfo(
-          `File download triggered for native (simulated).\nFilename: ${generatedFilename}`,
-        )
       }
-    } catch (e: any) {
-      setWalletInfo('Error saving wallet: ' + (e.message || e.toString()))
     }
-    setShowWalletPassword(false)
-    setWalletPassword('')
-    setGeneratedMnemonic(null)
-    setGeneratedFilename(null)
-  }, [generatedMnemonic, generatedFilename, walletPassword, dispatch])
+    input.click()
+  }, [])
+
+  // Handler for decrypting and using the loaded wallet after password entry
+  const handleDecryptAndUseWallet = React.useCallback(async () => {
+    if (!loadPassword) {
+      setWalletInfo('Please enter your password')
+      return
+    }
+
+    try {
+      const content = (globalThis as any).__walletFileContent
+      if (!content) {
+        throw new Error('No wallet file loaded')
+      }
+
+      // Use the actual loadWallet function to decrypt the wallet file
+      const walletData = await loadWallet(content, loadPassword)
+
+      // Set email/password from the wallet in UI
+      dispatch({type: 'setEmail', value: walletData.credentials?.user || ''})
+      dispatch({
+        type: 'setPassword',
+        value: walletData.credentials?.password || '',
+      })
+      dispatch({type: 'clearError'}) // Clear any existing validation errors
+
+      setWalletInfo('Wallet loaded successfully!')
+      setShowLoadPassword(false)
+      setLoadPassword('')
+      setLoadedWalletData(walletData)
+    } catch (error) {
+      setWalletInfo(
+        'Failed to decrypt wallet. Check your password: ' +
+          (error as Error).message,
+      )
+    }
+  }, [loadPassword, dispatch])
 
   const tldtsRef = React.useRef<typeof tldts>()
   React.useEffect(() => {
@@ -253,10 +237,10 @@ export function StepInfo({
                 variant="outline"
                 color="secondary"
                 size="large"
-                onPress={handleGenerateWallet}
-                label={_(msg`Generate Wallet`)}>
+                onPress={handleLoadWalletWeb}
+                label={_(msg`Load Key`)}>
                 <ButtonText>
-                  <Trans>Generate Wallet</Trans>
+                  <Trans>Load Key</Trans>
                 </ButtonText>
               </Button>
             </View>
@@ -267,15 +251,15 @@ export function StepInfo({
               </Text>
             )}
 
-            {showWalletPassword && (
+            {showLoadPassword && (
               <View style={[a.flex_col, a.gap_sm, a.mt_md]}>
                 <Text style={[a.text_center]}>
-                  <Trans>Enter a password to protect your wallet file:</Trans>
+                  <Trans>Enter password to decrypt your wallet:</Trans>
                 </Text>
                 <input
                   type="password"
-                  value={walletPassword}
-                  onChange={e => setWalletPassword(e.target.value)}
+                  value={loadPassword}
+                  onChange={e => setLoadPassword(e.target.value)}
                   style={{
                     padding: 8,
                     borderRadius: 4,
@@ -289,10 +273,10 @@ export function StepInfo({
                   variant="solid"
                   color="primary"
                   size="large"
-                  onPress={handleConfirmGenerateWallet}
-                  label={_(msg`Save Wallet`)}>
+                  onPress={handleDecryptAndUseWallet}
+                  label={_(msg`Decrypt Wallet`)}>
                   <ButtonText>
-                    <Trans>Save Wallet</Trans>
+                    <Trans>Decrypt Wallet</Trans>
                   </ButtonText>
                 </Button>
               </View>

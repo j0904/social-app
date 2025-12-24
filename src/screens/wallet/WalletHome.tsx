@@ -11,7 +11,8 @@ import {useSession} from '#/state/session'
 import {useSetMinimalShellMode} from '#/state/shell'
 import {useLoggedOutViewControls} from '#/state/shell/logged-out'
 import * as SettingsList from '#/screens/Settings/components/SettingsList'
-import {atoms as a} from '#/alf'
+import {atoms as a, useTheme} from '#/alf'
+import {Button, ButtonText} from '#/components/Button'
 import {Key_Stroke2_Corner2_Rounded as KeyIcon} from '#/components/icons/Key'
 import {PaperPlane_Stroke2_Corner0_Rounded as SendIcon} from '#/components/icons/PaperPlane'
 import * as Layout from '#/components/Layout'
@@ -23,9 +24,10 @@ type Props = Readonly<{
 }>
 
 export function WalletHomeScreen(_props: Props) {
-  const {setShowLoggedOut} = useLoggedOutViewControls()
+  const {setShowLoggedOut, requestSwitchToAccount} = useLoggedOutViewControls()
   const {currentAccount} = useSession()
   const {_} = useLingui()
+  const t = useTheme()
 
   React.useEffect(() => {
     if (isWeb && !currentAccount) {
@@ -84,6 +86,45 @@ export function WalletHomeScreen(_props: Props) {
               <Trans>Send Payment</Trans>
             </SettingsList.ItemText>
           </SettingsList.LinkItem>
+
+          <View
+            testID="signinOrCreateAccount"
+            style={[
+              a.w_full,
+              a.px_xl,
+              a.gap_md,
+              a.pb_2xl,
+              {maxWidth: 320, marginTop: 20},
+            ]}>
+            <Button
+              testID="createAccountButton"
+              onPress={() => requestSwitchToAccount({requestedAccount: 'new'})}
+              label={_(msg`Create new account`)}
+              accessibilityHint={_(
+                msg`Opens flow to create a new Bluesky account`,
+              )}
+              size="large"
+              variant="solid"
+              color="primary">
+              <ButtonText>
+                <Trans>Create account</Trans>
+              </ButtonText>
+            </Button>
+            <Button
+              testID="signInButton"
+              onPress={() => setShowLoggedOut(true)}
+              label={_(msg`Sign in`)}
+              accessibilityHint={_(
+                msg`Opens flow to sign in to your existing Bluesky account`,
+              )}
+              size="large"
+              variant="solid"
+              color="secondary">
+              <ButtonText>
+                <Trans>Sign in</Trans>
+              </ButtonText>
+            </Button>
+          </View>
         </SettingsList.Container>
       </Layout.Content>
     </Layout.Screen>
