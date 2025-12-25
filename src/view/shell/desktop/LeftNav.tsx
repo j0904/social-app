@@ -45,6 +45,7 @@ import {
   BulletList_Filled_Corner0_Rounded as ListFilled,
   BulletList_Stroke2_Corner0_Rounded as List,
 } from '#/components/icons/BulletList'
+import {CC_Stroke2_Corner0_Rounded as WalletIcon} from '#/components/icons/CC'
 import {DotGrid_Stroke2_Corner0_Rounded as EllipsisIcon} from '#/components/icons/DotGrid'
 import {EditBig_Stroke2_Corner0_Rounded as EditBig} from '#/components/icons/EditBig'
 import {
@@ -670,6 +671,24 @@ export function DesktopLeftNav() {
               />
             }
             label={_(msg`Home`)}
+          />
+          <NavItem
+            href="/wallet/home"
+            icon={
+              <WalletIcon
+                style={pal.text}
+                aria-hidden={true}
+                width={NAV_ICON_WIDTH}
+              />
+            }
+            iconFilled={
+              <WalletIcon
+                style={pal.text}
+                aria-hidden={true}
+                width={NAV_ICON_WIDTH}
+              />
+            }
+            label={_(msg`Wallet`)}
           />
           <NavItem
             href="/search"

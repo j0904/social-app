@@ -192,3 +192,12 @@ pkill -f "yarn web" 2>/dev/null;
 rm -rf node_modules/bigtangle-ts && yarn add file:/home/jcui/git/bigtangle-ts
 
 yarn test src/screens/wallet/__tests__/hdwallet.test.ts
+
+# TODO
+ ## add more bigtangle function as order etc.
+ ## test android and ios
+ ## publish to ios and android 
+ ## pipeline
+ ## integration ai
+ ## provider rewards for bluesky contents  simple pay for contends 
+ ## 

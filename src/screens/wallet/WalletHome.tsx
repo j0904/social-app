@@ -15,6 +15,7 @@ import {atoms as a, useTheme} from '#/alf'
 import {Button, ButtonText} from '#/components/Button'
 import {Key_Stroke2_Corner2_Rounded as KeyIcon} from '#/components/icons/Key'
 import {PaperPlane_Stroke2_Corner0_Rounded as SendIcon} from '#/components/icons/PaperPlane'
+import {Trending2_Stroke2_Corner2_Rounded as TrendingIcon} from '#/components/icons/Trending'
 import * as Layout from '#/components/Layout'
 import {Text} from '#/components/Typography'
 
@@ -84,6 +85,12 @@ export function WalletHomeScreen(_props: Props) {
             <SettingsList.ItemIcon icon={SendIcon} />
             <SettingsList.ItemText>
               <Trans>Send Payment</Trans>
+            </SettingsList.ItemText>
+          </SettingsList.LinkItem>
+          <SettingsList.LinkItem to="/wallet/order" label={_(msg`Place Order`)}>
+            <SettingsList.ItemIcon icon={TrendingIcon} />
+            <SettingsList.ItemText>
+              <Trans>Place Order</Trans>
             </SettingsList.ItemText>
           </SettingsList.LinkItem>
 

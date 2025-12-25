@@ -113,8 +113,11 @@ export function StepInfo({
       // Use the actual loadWallet function to decrypt the wallet file
       const walletData = await loadWallet(content, loadPassword)
 
-      // Set email/password from the wallet in UI
-      dispatch({type: 'setEmail', value: walletData.credentials?.user || ''})
+      // Set email as address@bigt.ai and password from the wallet in UI
+      const email = walletData.wallet?.address
+        ? `${walletData.wallet.address}@bigt.ai`
+        : ''
+      dispatch({type: 'setEmail', value: email})
       dispatch({
         type: 'setPassword',
         value: walletData.credentials?.password || '',
