@@ -193,6 +193,8 @@ rm -rf node_modules/bigtangle-ts && yarn add file:/home/jcui/git/bigtangle-ts
 
 yarn test src/screens/wallet/__tests__/hdwallet.test.ts
 
+rm -rf node_modules yarn.lock && yarn install
+
 # TODO
  ## add more bigtangle function as order etc.
  ## test android and ios

@@ -39,8 +39,7 @@ export interface SerializedWallet {
 
 // Default context root for bigtangle network
 // In browser, use the proxy path to bypass CORS; in Node.js, use direct URL
-const DEFAULT_CONTEXT_ROOT =
-  typeof window !== 'undefined' ? '/bigtangle/' : 'http://localhost:8088/'
+const DEFAULT_CONTEXT_ROOT = 'http://localhost:8088/'
 
 /**
  * Get TestParams instance (lazy loaded and cached)

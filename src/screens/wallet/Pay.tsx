@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import {Utils} from '@bigtangle/bigtangle-ts'
+import {Address, TestParams, Utils} from '@bigtangle/bigtangle-ts'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 import {useNavigation} from '@react-navigation/native'
@@ -174,10 +174,7 @@ export function PayScreen(
             let decimals = 8
 
             // The base token (all zeros) is BIG
-            if (
-              tokenIdHex ===
-              '0000000000000000000000000000000000000000000000000000000000000000'
-            ) {
+            if (tokenIdHex === 'bc') {
               tokenName = 'BIG'
               // decimals is already 8 (default), no change needed
             } else {
@@ -347,12 +344,7 @@ export function PayScreen(
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Import Address and TestParams from the installed package
-      const {
-        Address,
-      } = require('@bigtangle/bigtangle-ts/dist/net/bigtangle/core/Address.js')
-      const {
-        TestParams,
-      } = require('@bigtangle/bigtangle-ts/dist/net/bigtangle/params/TestParams.js')
+      // Address and TestParams are now imported at the top
 
       // Parse the amount - convert to smallest unit based on decimals
       const amountInSmallestUnit = BigInt(

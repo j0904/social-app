@@ -314,8 +314,7 @@ describe('HDWallet', () => {
 
       const quantity = '1'
       const decimals = 8
-      const tokenid =
-        '0000000000000000000000000000000000000000000000000000000000000000'
+      const tokenid = 'bc'
 
       // Parse the amount - convert to smallest unit based on decimals
       const amountInSmallestUnit = BigInt(
@@ -352,4 +351,36 @@ describe('HDWallet', () => {
       console.log(`Payment transaction hash: ${txHashStr}`)
     })
   })
+})
+type Token = {
+  tokenid: string
+  tokenname: string
+  decimals: number
+  balance?: string | undefined
+}
+
+describe('btWallet.searchToken (integration)', () => {
+  it('should call the real server and return tokenList', async () => {
+    // Use a real private key (testnet, with some tokens if possible)
+    const TEST_PRIVATE_KEY =
+      'ec1d240521f7f254c52aea69fca3f28d754d1b89f310f42b0fb094d16814317f'
+    const contextRoot = getDefaultContextRoot()
+    const walletFile = await importPrivateKey(TEST_PRIVATE_KEY)
+    const btWallet = await createBigtangleWallet(walletFile, contextRoot)
+    const query = '' // empty query should return all tokens
+    const result = await btWallet.searchToken(query)
+    expect(result).toBeDefined()
+    expect(Array.isArray(result.tokenList)).toBe(true)
+    // Optionally print for debug
+    console.log('searchToken result:', result)
+    // Check token fields if any tokens are returned
+    if (result.tokenList.length > 0) {
+      const tokens: Token[] = result.tokenList.map((t: any) => ({
+        tokenid: t.tokenid,
+        tokenname: t.tokenname,
+        decimals: t.decimals ?? 8,
+        balance: undefined, // balance not available from search
+      }))
+    }
+  }, 20000) // allow up to 20s for network
 })

@@ -1,12 +1,6 @@
 import {useCallback, useEffect, useMemo, useState} from 'react'
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  TextInput,
-  View,
-} from 'react-native'
+import {Modal, Pressable, TextInput, View} from 'react-native'
+import {Utils} from '@bigtangle/bigtangle-ts'
 import {msg, Trans} from '@lingui/macro'
 import {useLingui} from '@lingui/react'
 import {type NativeStackScreenProps} from '@react-navigation/native-stack'
@@ -35,7 +29,8 @@ interface Token {
 }
 
 // Default context root for blockchain API
-const CONTEXT_ROOT = getDefaultContextRoot()
+const CONTEXT_ROOT =
+  typeof window !== 'undefined' ? '/bigtangle/' : getDefaultContextRoot()
 
 type OrderType = 'buy' | 'sell'
 type BaseCurrency = 'bc' | 'USD' | 'YUAN'
@@ -78,24 +73,19 @@ export function OrderScreen(
   // ...existing code...
   // Order state
   const [orderType, setOrderType] = useState<OrderType>('buy')
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null)
+  const [selectedToken, _setSelectedToken] = useState<Token | null>(null)
   const [amount, setAmount] = useState('')
   const [price, setPrice] = useState('')
   const [baseCurrency, setBaseCurrency] = useState<BaseCurrency>('USD')
   const [total, setTotal] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [txHash, setTxHash] = useState('')
-
   // Token list state - loaded from blockchain
   const [availableTokens, setAvailableTokens] = useState<Token[]>([])
-  const [isLoadingTokens, setIsLoadingTokens] = useState(false)
   const [tokensLoaded, setTokensLoaded] = useState(false)
 
   // Token search state
-  const [showTokenPicker, setShowTokenPicker] = useState(false)
-  const [tokenSearchQuery, setTokenSearchQuery] = useState('')
-  const [filteredTokens, setFilteredTokens] = useState<Token[]>([])
+  const [tokenSearchQuery, _setTokenSearchQuery] = useState('')
 
   // Password prompt state (if wallet is locked)
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false)
@@ -106,8 +96,8 @@ export function OrderScreen(
 
   // Pure validation function: returns {valid, message}
   const validateForm = useCallback(() => {
-    if (orderType === 'sell' && !selectedToken) {
-      return {valid: false, message: 'Please select a token to sell'}
+    if (!selectedToken) {
+      return {valid: false, message: 'Please select a token'}
     }
     if (!amount || Number.parseFloat(amount) <= 0) {
       return {valid: false, message: 'Please enter a valid amount'}
@@ -125,9 +115,32 @@ export function OrderScreen(
           message: `Insufficient balance. Available: ${selectedToken.balance} ${selectedToken.tokenname}`,
         }
       }
+    } else if (orderType === 'buy' && selectedToken) {
+      // For buy orders, check if user has enough base currency (BIG) to buy the tokens
+      // First, find the base currency (BIG) token in availableTokens
+      const baseCurrencyToken = availableTokens.find(
+        token => token.tokenid === 'bc',
+      )
+
+      if (baseCurrencyToken) {
+        const baseBalance = Number.parseFloat(baseCurrencyToken.balance || '0')
+        const totalCost = Number.parseFloat(total || '0')
+        if (totalCost > baseBalance) {
+          return {
+            valid: false,
+            message: `Insufficient base currency (BIG) balance. Available: ${baseCurrencyToken.balance} BIG`,
+          }
+        }
+      } else {
+        return {
+          valid: false,
+          message:
+            'Base currency (BIG) not found in wallet. Cannot buy tokens.',
+        }
+      }
     }
     return {valid: true, message: ''}
-  }, [orderType, selectedToken, amount, price])
+  }, [orderType, selectedToken, amount, price, total, availableTokens])
 
   // Create bigtangle wallet from wallet file (always create fresh instance)
   const createBtWallet = useCallback(
@@ -196,10 +209,7 @@ export function OrderScreen(
             let decimals = 8
 
             // The base token (all zeros) is BIG
-            if (
-              tokenIdHex ===
-              '0000000000000000000000000000000000000000000000000000000000000000'
-            ) {
+            if (tokenIdHex === 'bc') {
               tokenName = 'BIG'
               // decimals is already 8 (default), no change needed
             } else {
@@ -270,21 +280,66 @@ export function OrderScreen(
     }
   }, [isUnlocked, hasWallet, loadTokensFromBlockchain, tokensLoaded])
 
-  // Filter tokens based on search query
+  // Enhanced token search for buy order using bigtangle-ts wallet searchToken
   useEffect(() => {
-    if (tokenSearchQuery.trim() === '') {
-      setFilteredTokens(availableTokens)
-    } else {
-      const query = tokenSearchQuery.toLowerCase()
-      setFilteredTokens(
-        availableTokens.filter(
-          token =>
-            token.tokenname.toLowerCase().includes(query) ||
-            token.tokenid.toLowerCase().includes(query),
-        ),
-      )
+    let cancelled = false
+    const doSearch = async () => {
+      if (orderType === 'buy' && isUnlocked) {
+        try {
+          const wallet = getUnlockedWallet()
+          const password = getPassword()
+          if (!wallet || !password) return
+          const btWallet = await createBtWallet(wallet as WalletFile)
+          // searchToken returns { tokenList, amountMap }
+          const result = await btWallet.searchToken(tokenSearchQuery.trim())
+          if (!cancelled && result && Array.isArray(result.tokenList)) {
+            // Map tokenList to Token[] and include domainName, only distinct by tokenid
+            const seen = new Set()
+            const tokens: Token[] = result.tokenList
+              .filter((t: any) => {
+                if (seen.has(t.tokenid)) return false
+                seen.add(t.tokenid)
+                return true
+              })
+              .map((t: any) => ({
+                tokenid: t.tokenid,
+                tokenname: t.tokenname,
+                decimals: t.decimals ?? 8,
+                balance: undefined, // balance not available from search
+              }))
+            setFilteredTokens(tokens)
+          } else if (!cancelled) {
+            setFilteredTokens([])
+          }
+        } catch (e) {
+          logger.error('Token search error', {safeMessage: e})
+          if (!cancelled) setFilteredTokens([])
+        }
+      } else {
+        // fallback to local filter for sell order or locked wallet
+        const query = tokenSearchQuery.toLowerCase()
+        setFilteredTokens(
+          availableTokens.filter(
+            token =>
+              token.tokenname.toLowerCase().includes(query) ||
+              token.tokenid.toLowerCase().includes(query),
+          ),
+        )
+      }
     }
-  }, [tokenSearchQuery, availableTokens])
+    doSearch()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    tokenSearchQuery,
+    availableTokens,
+    orderType,
+    isUnlocked,
+    getUnlockedWallet,
+    getPassword,
+    createBtWallet,
+  ])
 
   // Calculate total when amount or price changes
   useEffect(() => {
@@ -332,29 +387,127 @@ export function OrderScreen(
   const handlePlaceOrder = useCallback(async () => {
     if (!validateForm()) return
 
-    // Check if wallet is unlocked
-    if (!isUnlocked) {
-      setErrorMessage('Wallet is locked. Please unlock to proceed.')
-      return
-    }
-
-    setIsLoading(true)
     setErrorMessage('')
 
     try {
-      // In a real implementation, this would connect to an exchange API
-      // For now, we'll simulate the order placement
-      logger.info('Placing order', {
-        orderType,
-        token: selectedToken?.tokenname,
-        amount,
-        price,
-        baseCurrency,
-        total,
-      })
+      const wallet = getUnlockedWallet()
+      const password = getPassword()
 
-      // Simulate a successful transaction
-      setTxHash(`tx_${Date.now()}`)
+      if (!wallet || !password) {
+        throw new Error('Wallet not unlocked')
+      }
+
+      // Create bigtangle wallet instance (fresh instance each time)
+      const btWallet = await createBtWallet(wallet as WalletFile)
+
+      // For buy orders: need to pay with base currency (BIG) to get tokens
+      if (orderType === 'buy' && selectedToken) {
+        // Calculate how much base currency (BIG) is needed
+        const baseCurrencyAmount = BigInt(
+          Math.floor(
+            Number.parseFloat(total) * Math.pow(10, 8), // Base currency has 8 decimals
+          ),
+        )
+
+        // For buying: we pay with base currency (BIG) to get tokens
+        // This would typically involve interacting with an exchange smart contract
+        // For now, we'll simulate this by sending the base currency amount to a special address
+        const giveMoneyResult = new Map()
+
+        // The destination would be the exchange contract or mechanism that gives us tokens
+        // For simulation purposes, we'll just use the wallet's own address
+        // In a real implementation, this would be an exchange contract address
+        if (!publicInfo) {
+          throw new Error('Wallet public info not available')
+        }
+        const exchangeAddress = publicInfo.address
+        giveMoneyResult.set(exchangeAddress, baseCurrencyAmount)
+
+        // Execute the buy transaction using bigtangle-ts wallet.payToList()
+        const block = await btWallet.payToList(
+          password,
+          giveMoneyResult,
+          Buffer.from(
+            '0000000000000000000000000000000000000000000000000000000000000000',
+            'hex',
+          ), // Base currency (BIG) token ID
+          `Buy ${amount} ${selectedToken.tokenname} for ${total} ${baseCurrency}`,
+        )
+
+        if (!block) {
+          throw new Error('Failed to create buy transaction')
+        }
+
+        // Get the block hash as transaction ID
+        const blockHash = block.getHash ? block.getHash() : block.hash
+        const txHashStr = blockHash?.toString('hex') || `tx_${Date.now()}`
+
+        logger.info('Buy order executed successfully', {
+          from: (wallet as WalletFile).wallet.address,
+          tokenId: selectedToken.tokenid,
+          tokenName: selectedToken.tokenname,
+          amount: amount,
+          decimals: selectedToken.decimals,
+          baseCurrencyAmount: total,
+          baseCurrency: baseCurrency,
+          memo: `Buy ${amount} ${selectedToken.tokenname}`,
+          txHash: txHashStr,
+        })
+
+        setTxHash(txHashStr)
+      }
+      // For sell orders: need to send tokens to get base currency (BIG)
+      else if (orderType === 'sell' && selectedToken) {
+        // For selling: we send tokens to get base currency (BIG)
+        // The destination would be the exchange contract or mechanism that pays us
+        const giveMoneyResult = new Map()
+
+        // The destination would be the exchange contract or mechanism that pays us
+        // For simulation purposes, we'll just use the wallet's own address
+        // In a real implementation, this would be an exchange contract address
+        if (!publicInfo) {
+          throw new Error('Wallet public info not available')
+        }
+        const exchangeAddress = publicInfo.address
+        // Calculate how much tokens to sell in smallest unit
+        const amountToSell = BigInt(
+          Math.floor(
+            Number.parseFloat(amount) * Math.pow(10, selectedToken.decimals),
+          ),
+        )
+        giveMoneyResult.set(exchangeAddress, amountToSell)
+
+        // Execute the sell transaction using bigtangle-ts wallet.payToList()
+        const block = await btWallet.payToList(
+          password,
+          giveMoneyResult,
+          Buffer.from(Utils.HEX.decode(selectedToken.tokenid)), // The token we're selling
+          `Sell ${amount} ${selectedToken.tokenname} for ${total} ${baseCurrency}`,
+        )
+
+        if (!block) {
+          throw new Error('Failed to create sell transaction')
+        }
+
+        // Get the block hash as transaction ID
+        const blockHash = block.getHash ? block.getHash() : block.hash
+        const txHashStr = blockHash?.toString('hex') || `tx_${Date.now()}`
+
+        logger.info('Sell order executed successfully', {
+          from: (wallet as WalletFile).wallet.address,
+          tokenId: selectedToken.tokenid,
+          tokenName: selectedToken.tokenname,
+          amount: amount,
+          decimals: selectedToken.decimals,
+          baseCurrencyAmount: total,
+          baseCurrency: baseCurrency,
+          memo: `Sell ${amount} ${selectedToken.tokenname}`,
+          txHash: txHashStr,
+        })
+
+        setTxHash(txHashStr)
+      }
+
       setErrorMessage('')
 
       // Reset form after successful order
@@ -365,6 +518,9 @@ export function OrderScreen(
         setErrorMessage('')
         setIsLoading(false)
       }, 1000)
+
+      // Refresh token balances after transaction
+      setTimeout(() => loadTokensFromBlockchain(), 2000)
     } catch (error) {
       logger.error('Order placement error:', {safeMessage: error})
       setErrorMessage(`Order failed: ${(error as Error).message}`)
@@ -374,169 +530,15 @@ export function OrderScreen(
     orderType,
     selectedToken,
     amount,
-    price,
     baseCurrency,
     total,
     validateForm,
-    isUnlocked,
+    getUnlockedWallet,
+    getPassword,
+    createBtWallet,
+    publicInfo,
+    loadTokensFromBlockchain,
   ])
-
-  // Render token picker modal
-  const renderTokenPicker = () => (
-    <Modal
-      visible={showTokenPicker}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowTokenPicker(false)}>
-      <View
-        style={[a.flex_1, a.justify_end, {backgroundColor: 'rgba(0,0,0,0.5)'}]}>
-        <View
-          style={[
-            a.rounded_md,
-            a.p_lg,
-            {
-              backgroundColor: theme.atoms.bg.backgroundColor,
-              maxHeight: '70%',
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
-            },
-          ]}>
-          <View
-            style={[a.flex_row, a.justify_between, a.align_center, a.mb_md]}>
-            <Text style={[a.text_lg, a.font_bold]}>
-              <Trans>Select Token to Sell</Trans>
-            </Text>
-            <View style={[a.flex_row, a.gap_md, a.align_center]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={_(msg`Refresh tokens`)}
-                accessibilityHint={_(msg`Reload tokens from blockchain`)}
-                onPress={loadTokensFromBlockchain}
-                disabled={isLoadingTokens}>
-                <Text style={[{color: theme.palette.primary_500}]}>
-                  {isLoadingTokens ? (
-                    <Trans>Loading...</Trans>
-                  ) : (
-                    <Trans>Refresh</Trans>
-                  )}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={_(msg`Close token picker`)}
-                accessibilityHint={_(msg`Closes the token selection dialog`)}
-                onPress={() => setShowTokenPicker(false)}>
-                <Text style={[{color: theme.palette.primary_500}]}>
-                  <Trans>Close</Trans>
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <TextInput
-            accessibilityLabel={_(msg`Search tokens`)}
-            accessibilityHint={_(msg`Enter token name or ID to search`)}
-            style={[
-              a.px_md,
-              a.py_sm,
-              a.rounded_sm,
-              a.mb_md,
-              a.text_md,
-              {
-                backgroundColor: theme.atoms.bg_contrast_25.backgroundColor,
-                color: theme.atoms.text.color,
-                borderWidth: 1,
-                borderColor: theme.atoms.border_contrast_low.borderColor,
-              },
-            ]}
-            placeholder={_(msg`Search by name or token ID...`)}
-            placeholderTextColor={theme.atoms.text_contrast_low.color}
-            value={tokenSearchQuery}
-            onChangeText={setTokenSearchQuery}
-            autoCapitalize="none"
-          />
-
-          {isLoadingTokens ? (
-            <View style={[a.p_lg, a.align_center]}>
-              <ActivityIndicator
-                size="large"
-                color={theme.palette.primary_500}
-              />
-              <Text
-                style={[
-                  a.mt_md,
-                  {color: theme.atoms.text_contrast_medium.color},
-                ]}>
-                <Trans>Loading tokens from blockchain...</Trans>
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredTokens}
-              keyExtractor={item => item.tokenid}
-              renderItem={({item}) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={_(msg`Select ${item.tokenname} token`)}
-                  accessibilityHint={_(msg`Selects this token for order`)}
-                  style={[
-                    a.p_md,
-                    a.rounded_sm,
-                    a.mb_sm,
-                    {
-                      backgroundColor:
-                        selectedToken?.tokenid === item.tokenid
-                          ? theme.palette.primary_100
-                          : theme.atoms.bg_contrast_25.backgroundColor,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedToken(item)
-                    setShowTokenPicker(false)
-                    setTokenSearchQuery('')
-                  }}>
-                  <View style={[a.flex_row, a.justify_between, a.align_center]}>
-                    <View>
-                      <Text style={[a.text_md, a.font_bold]}>
-                        {item.tokenname}
-                      </Text>
-                      <Text
-                        style={[
-                          a.text_xs,
-                          {color: theme.atoms.text_contrast_medium.color},
-                        ]}
-                        numberOfLines={1}>
-                        {item.tokenid.substring(0, 16)}...
-                      </Text>
-                    </View>
-                    <Text style={[a.text_md]}>
-                      {item.balance
-                        ? formatNumber(item.balance, item.decimals)
-                        : '0'}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
-              ListEmptyComponent={
-                <View style={[a.p_lg, a.align_center]}>
-                  <Text
-                    style={[{color: theme.atoms.text_contrast_medium.color}]}>
-                    {availableTokens.length === 0 ? (
-                      <Trans>
-                        No tokens found. Unlock your wallet to load tokens.
-                      </Trans>
-                    ) : (
-                      <Trans>No tokens match your search</Trans>
-                    )}
-                  </Text>
-                </View>
-              }
-            />
-          )}
-        </View>
-      </View>
-    </Modal>
-  )
 
   // Render password prompt modal
   const renderPasswordPrompt = () => (
@@ -689,61 +691,61 @@ export function OrderScreen(
         </Button>
       </View>
 
-      {/* Token Selection (only for sell orders) */}
-      {orderType === 'sell' && (
-        <>
-          <Text
-            style={[
-              a.text_sm,
-              a.font_bold,
-              a.mb_xs,
-              {color: theme.atoms.text.color},
-            ]}>
-            <Trans>Token to Sell</Trans>
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={_(msg`Select token`)}
-            accessibilityHint={_(msg`Opens token picker`)}
-            style={[
-              a.px_md,
-              a.py_md,
-              a.rounded_sm,
-              a.mb_lg,
-              a.flex_row,
-              a.justify_between,
-              a.align_center,
-              {
-                backgroundColor: theme.atoms.bg_contrast_25.backgroundColor,
-                borderWidth: 1,
-                borderColor: theme.atoms.border_contrast_low.borderColor,
-              },
-            ]}
-            onPress={() => setShowTokenPicker(true)}>
-            {selectedToken ? (
-              <View>
-                <Text style={[a.text_md, {color: theme.atoms.text.color}]}>
-                  {selectedToken.tokenname}
-                </Text>
+      {/* Token Selection (for both buy and sell orders) */}
+      <>
+        <Text
+          style={[
+            a.text_sm,
+            a.font_bold,
+            a.mb_xs,
+            {color: theme.atoms.text.color},
+          ]}>
+          <Trans>Token</Trans>
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={_(msg`Select token`)}
+          accessibilityHint={_(msg`Opens token picker`)}
+          style={[
+            a.px_md,
+            a.py_md,
+            a.rounded_sm,
+            a.mb_lg,
+            a.flex_row,
+            a.justify_between,
+            a.align_center,
+            {
+              backgroundColor: theme.atoms.bg_contrast_25.backgroundColor,
+              borderWidth: 1,
+              borderColor: theme.atoms.border_contrast_low.borderColor,
+            },
+          ]}
+          onPress={() => setShowTokenPicker(true)}>
+          {selectedToken ? (
+            <View>
+              <Text style={[a.text_md, {color: theme.atoms.text.color}]}>
+                {selectedToken.tokenname}
+              </Text>
+              {orderType === 'sell' && selectedToken.balance && (
                 <Text
                   style={[
                     a.text_xs,
                     {color: theme.atoms.text_contrast_medium.color},
                   ]}>
-                  Balance: {selectedToken.balance || '0'}
+                  Balance: {selectedToken.balance}
                 </Text>
-              </View>
-            ) : (
-              <Text style={[{color: theme.atoms.text_contrast_low.color}]}>
-                <Trans>Select a token...</Trans>
-              </Text>
-            )}
-            <Text style={[{color: theme.atoms.text_contrast_medium.color}]}>
-              ▼
+              )}
+            </View>
+          ) : (
+            <Text style={[{color: theme.atoms.text_contrast_low.color}]}>
+              <Trans>Select a token...</Trans>
             </Text>
-          </Pressable>
-        </>
-      )}
+          )}
+          <Text style={[{color: theme.atoms.text_contrast_medium.color}]}>
+            ▼
+          </Text>
+        </Pressable>
+      </>
 
       {/* Amount */}
       <Text
@@ -757,7 +759,7 @@ export function OrderScreen(
       </Text>
       <TextInput
         accessibilityLabel={_(msg`Amount`)}
-        accessibilityHint={_(msg`Enter the amount to ${orderType}`)}
+        accessibilityHint={_(msg`Enter the amount of tokens`)}
         style={[
           a.px_md,
           a.py_md,

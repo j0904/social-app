@@ -4,6 +4,7 @@
     "jsx": "react-jsx",
     "module": "esnext",
     "types": ["node", "jest"],
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "#/*": ["./src/*"],
